@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Strategy Blueprint Tool - Data Model",
+  "version": "1.0.0",
+  "description": "公司策略藍圖發展工具 - 資料模型",
+  "type": "object",
+  "required": ["meta", "vision", "swot", "metrics", "strategies", "actions", "kpis"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "properties": {
+        "companyName": { "type": "string", "description": "公司名稱" },
+        "year": { "type": "number", "description": "年度" },
+        "lastUpdated": { "type": "string", "format": "date-time" },
+        "version": { "type": "string", "default": "1.0" }
+      },
+      "required": ["companyName", "year"]
+    },
+    "vision": {
+      "type": "object",
+      "properties": {
+        "mission": { "type": "string", "description": "使命" },
+        "vision": { "type": "string", "description": "願景" },
+        "values": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "核心價值觀"
+        }
+      },
+      "required": ["mission", "vision"]
+    },
+    "swot": {
+      "type": "object",
+      "properties": {
+        "strengths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "優勢"
+        },
+        "weaknesses": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "劣勢"
+        },
+        "opportunities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "機會"
+        },
+        "threats": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "威脅"
+        }
+      },
+      "required": ["strengths", "weaknesses", "opportunities", "threats"]
+    },
+    "metrics": {
+      "type": "array",
+      "description": "現況數據指標",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string", "description": "指標名稱" },
+          "value": { "type": "number" },
+          "unit": { "type": "string" },
+          "category": { "type": "string", "description": "分類：財務/客戶/內部流程/學習成長" },
+          "note": { "type": "string" }
+        },
+        "required": ["id", "name", "value", "unit"]
+      }
+    },
+    "strategies": {
+      "type": "array",
+      "description": "策略主題",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "priority": { "type": "string", "enum": ["高", "中", "低"] },
+          "status": { "type": "string", "enum": ["草案", "進行中", "已完成", "暫停"] }
+        },
+        "required": ["id", "title", "description", "priority"]
+      }
+    },
+    "actions": {
+      "type": "array",
+      "description": "行動方案",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "strategyId": { "type": "string", "description": "所屬策略主題" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "owner": { "type": "string", "description": "負責人" },
+          "startDate": { "type": "string", "format": "date" },
+          "endDate": { "type": "string", "format": "date" },
+          "status": { "type": "string", "enum": ["未開始", "進行中", "已完成", "暫停"] },
+          "progress": { "type": "number", "minimum": 0, "maximum": 100 }
+        },
+        "required": ["id", "strategyId", "title", "owner", "status"]
+      }
+    },
+    "kpis": {
+      "type": "array",
+      "description": "KPI 追蹤",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "actionId": { "type": "string", "description": "所屬行動方案" },
+          "name": { "type": "string" },
+          "currentValue": { "type": "number" },
+          "targetValue": { "type": "number" },
+          "unit": { "type": "string" },
+          "deadline": { "type": "string", "format": "date" }
+        },
+        "required": ["id", "actionId", "name", "targetValue", "unit"]
+      }
+    }
+  }
+}

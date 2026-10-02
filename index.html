@@ -1,0 +1,1904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>策略藍圖發展工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #E8447A;
+            --secondary: #F5B301;
+            --dark: #2B2B33;
+            --light: #E8F3FB;
+            --bg: #1a1a2e;
+            --card-bg: #252540;
+            --text: #E8F3FB;
+            --text-muted: #8892b0;
+            --success: #00C9A7;
+            --warning: #F5B301;
+            --danger: #E8447A;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 側邊欄 */
+        .sidebar {
+            width: 260px;
+            background: var(--dark);
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            border-right: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid rgba(232, 243, 251, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-header h1 {
+            font-size: 18px;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .nav-section {
+            margin-bottom: 20px;
+        }
+
+        .nav-section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 20px;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            color: var(--text);
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background: rgba(232, 68, 122, 0.1);
+            border-left-color: var(--primary);
+        }
+
+        .nav-item.active {
+            background: rgba(232, 68, 122, 0.2);
+            border-left-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .nav-item .icon {
+            margin-right: 10px;
+            font-size: 16px;
+        }
+
+        /* 主內容區 */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        /* 頂部工具欄 */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .toolbar h2 {
+            font-size: 24px;
+            color: var(--text);
+        }
+
+        .toolbar-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d1336a;
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(232, 243, 251, 0.1);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        /* 卡片 */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+
+        /* 表單元素 */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        textarea.form-control {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        /* 網格佈局 */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        /* SWOT 佈局 */
+        .swot-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .swot-item {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .swot-item h4 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .swot-item.strengths h4 { color: var(--success); }
+        .swot-item.weaknesses h4 { color: var(--danger); }
+        .swot-item.opportunities h4 { color: var(--secondary); }
+        .swot-item.threats h4 { color: #ff6b6b; }
+
+        /* 列表項目 */
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg);
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .list-item-content {
+            flex: 1;
+        }
+
+        .list-item-title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .list-item-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .list-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: rgba(245, 179, 1, 0.2);
+            color: var(--secondary);
+        }
+
+        .btn-delete {
+            background: rgba(232, 68, 122, 0.2);
+            color: var(--danger);
+        }
+
+        /* 進度條 */
+        .progress-bar {
+            height: 6px;
+            background: var(--bg);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        /* 狀態標籤 */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-draft { background: rgba(136, 146, 176, 0.2); color: var(--text-muted); }
+        .status-active { background: rgba(0, 201, 167, 0.2); color: var(--success); }
+        .status-completed { background: rgba(245, 179, 1, 0.2); color: var(--secondary); }
+        .status-paused { background: rgba(232, 68, 122, 0.2); color: var(--danger); }
+
+        /* 模態框 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 18px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* 簡報模式 */
+        .presentation-mode {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg);
+            z-index: 2000;
+            display: none;
+            overflow-y: auto;
+        }
+
+        .presentation-mode.active {
+            display: block;
+        }
+
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px;
+            text-align: center;
+        }
+
+        .slide h1 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .slide h2 {
+            font-size: 36px;
+            margin-bottom: 30px;
+        }
+
+        .slide-content {
+            max-width: 800px;
+            font-size: 18px;
+            line-height: 1.8;
+            color: var(--text);
+        }
+
+        .slide-nav {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 2001;
+        }
+
+        .slide-nav button {
+            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+            color: var(--text);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* 響應式 */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .swot-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* 空狀態 */
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* 統計卡片 */
+        .stat-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* 優先級標籤 */
+        .priority-high { color: var(--danger); }
+        .priority-medium { color: var(--secondary); }
+        .priority-low { color: var(--success); }
+
+        /* 搜尋框 */
+        .search-box {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px 10px 40px;
+            background: var(--bg);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .search-box::before {
+            content: "🔍";
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        /* 篩選器 */
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 6px 14px;
+            background: var(--bg);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+            border-radius: 20px;
+            color: var(--text);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        /* 時間線 */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(232, 243, 251, 0.1);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .timeline-content {
+            font-size: 14px;
+        }
+
+        /* 匯入匯出 */
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        /* 通知 */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background: var(--card-bg);
+            border-radius: 8px;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+            color: var(--text);
+            font-size: 14px;
+            z-index: 3000;
+            transform: translateX(400px);
+            transition: transform 0.3s;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { border-left: 4px solid var(--success); }
+        .notification.error { border-left: 4px solid var(--danger); }
+    </style>
+</head>
+<body>
+    <!-- 側邊欄 -->
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <h1>📊 策略藍圖</h1>
+            <p>Strategy Blueprint Tool</p>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">總覽</div>
+            <a class="nav-item active" data-page="dashboard">
+                <span class="icon">📈</span>
+                儀表板
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">基礎設定</div>
+            <a class="nav-item" data-page="vision">
+                <span class="icon">🎯</span>
+                願景與使命
+            </a>
+            <a class="nav-item" data-page="swot">
+                <span class="icon">🔍</span>
+                SWOT 分析
+            </a>
+            <a class="nav-item" data-page="metrics">
+                <span class="icon">📊</span>
+                數據現況
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">策略規劃</div>
+            <a class="nav-item" data-page="strategies">
+                <span class="icon">🎯</span>
+                策略主題
+            </a>
+            <a class="nav-item" data-page="actions">
+                <span class="icon">⚡</span>
+                行動方案
+            </a>
+            <a class="nav-item" data-page="kpis">
+                <span class="icon">📌</span>
+                KPI 追蹤
+            </a>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title">輸出</div>
+            <a class="nav-item" data-page="presentation">
+                <span class="icon">🎬</span>
+                簡報模式
+            </a>
+        </div>
+    </nav>
+
+    <!-- 主內容區 -->
+    <main class="main-content">
+        <!-- 儀表板 -->
+        <div id="page-dashboard" class="page active">
+            <div class="toolbar">
+                <h2>儀表板</h2>
+                <div class="toolbar-actions">
+                    <button class="btn btn-secondary" onclick="exportData()">💾 匯出</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📂 匯入</button>
+                    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+                    <button class="btn btn-primary" onclick="resetData()">🔄 重設</button>
+                </div>
+            </div>
+
+            <div class="grid-4" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-strategies">0</div>
+                    <div class="stat-label">策略主題</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-actions">0</div>
+                    <div class="stat-label">行動方案</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-kpis">0</div>
+                    <div class="stat-label">KPI 指標</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-progress">0%</div>
+                    <div class="stat-label">整體進度</div>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-title">📋 最近行動方案</div>
+                    <div id="recent-actions"></div>
+                </div>
+                <div class="card">
+                    <div class="card-title">📌 即將到期 KPI</div>
+                    <div id="upcoming-kpis"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 願景與使命 -->
+        <div id="page-vision" class="page">
+            <div class="toolbar">
+                <h2>願景與使命</h2>
+            </div>
+            <div class="card">
+                <div class="form-group">
+                    <label>公司名稱</label>
+                    <input type="text" class="form-control" id="company-name" placeholder="例：富昇物流有限公司">
+                </div>
+                <div class="form-group">
+                    <label>年度</label>
+                    <input type="number" class="form-control" id="company-year" placeholder="例：2027">
+                </div>
+                <div class="form-group">
+                    <label>使命 (Mission)</label>
+                    <textarea class="form-control" id="mission" placeholder="公司存在的目的"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>願景 (Vision)</label>
+                    <textarea class="form-control" id="vision" placeholder="公司想成為什麼"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>核心價值觀</label>
+                    <div id="values-list"></div>
+                    <button class="btn btn-secondary" onclick="addValue()">+ 新增價值觀</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- SWOT 分析 -->
+        <div id="page-swot" class="page">
+            <div class="toolbar">
+                <h2>SWOT 分析</h2>
+            </div>
+            <div class="swot-grid">
+                <div class="swot-item strengths">
+                    <h4>💪 優勢 (Strengths)</h4>
+                    <div id="strengths-list"></div>
+                    <button class="btn btn-secondary" onclick="addSwotItem('strengths')">+ 新增</button>
+                </div>
+                <div class="swot-item weaknesses">
+                    <h4>⚠️ 劣勢 (Weaknesses)</h4>
+                    <div id="weaknesses-list"></div>
+                    <button class="btn btn-secondary" onclick="addSwotItem('weaknesses')">+ 新增</button>
+                </div>
+                <div class="swot-item opportunities">
+                    <h4>🚀 機會 (Opportunities)</h4>
+                    <div id="opportunities-list"></div>
+                    <button class="btn btn-secondary" onclick="addSwotItem('opportunities')">+ 新增</button>
+                </div>
+                <div class="swot-item threats">
+                    <h4>🔥 威脅 (Threats)</h4>
+                    <div id="threats-list"></div>
+                    <button class="btn btn-secondary" onclick="addSwotItem('threats')">+ 新增</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 數據現況 -->
+        <div id="page-metrics" class="page">
+            <div class="toolbar">
+                <h2>數據現況</h2>
+                <button class="btn btn-primary" onclick="openMetricModal()">+ 新增指標</button>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋指標..." id="metric-search" oninput="renderMetrics()">
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-category="all" onclick="filterMetrics('all')">全部</button>
+                <button class="filter-btn" data-category="財務" onclick="filterMetrics('財務')">財務</button>
+                <button class="filter-btn" data-category="客戶" onclick="filterMetrics('客戶')">客戶</button>
+                <button class="filter-btn" data-category="內部流程" onclick="filterMetrics('內部流程')">內部流程</button>
+                <button class="filter-btn" data-category="學習成長" onclick="filterMetrics('學習成長')">學習成長</button>
+            </div>
+            <div id="metrics-list"></div>
+        </div>
+
+        <!-- 策略主題 -->
+        <div id="page-strategies" class="page">
+            <div class="toolbar">
+                <h2>策略主題</h2>
+                <button class="btn btn-primary" onclick="openStrategyModal()">+ 新增策略</button>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋策略..." id="strategy-search" oninput="renderStrategies()">
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-status="all" onclick="filterStrategies('all')">全部</button>
+                <button class="filter-btn" data-status="草案" onclick="filterStrategies('草案')">草案</button>
+                <button class="filter-btn" data-status="進行中" onclick="filterStrategies('進行中')">進行中</button>
+                <button class="filter-btn" data-status="已完成" onclick="filterStrategies('已完成')">已完成</button>
+                <button class="filter-btn" data-status="暫停" onclick="filterStrategies('暫停')">暫停</button>
+            </div>
+            <div id="strategies-list"></div>
+        </div>
+
+        <!-- 行動方案 -->
+        <div id="page-actions" class="page">
+            <div class="toolbar">
+                <h2>行動方案</h2>
+                <button class="btn btn-primary" onclick="openActionModal()">+ 新增方案</button>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋方案..." id="action-search" oninput="renderActions()">
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-status="all" onclick="filterActions('all')">全部</button>
+                <button class="filter-btn" data-status="未開始" onclick="filterActions('未開始')">未開始</button>
+                <button class="filter-btn" data-status="進行中" onclick="filterActions('進行中')">進行中</button>
+                <button class="filter-btn" data-status="已完成" onclick="filterActions('已完成')">已完成</button>
+                <button class="filter-btn" data-status="暫停" onclick="filterActions('暫停')">暫停</button>
+            </div>
+            <div id="actions-list"></div>
+        </div>
+
+        <!-- KPI 追蹤 -->
+        <div id="page-kpis" class="page">
+            <div class="toolbar">
+                <h2>KPI 追蹤</h2>
+                <button class="btn btn-primary" onclick="openKpiModal()">+ 新增 KPI</button>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋 KPI..." id="kpi-search" oninput="renderKpis()">
+            </div>
+            <div id="kpis-list"></div>
+        </div>
+
+        <!-- 簡報模式 -->
+        <div id="page-presentation" class="page">
+            <div class="toolbar">
+                <h2>簡報模式</h2>
+                <button class="btn btn-primary" onclick="startPresentation()">▶ 開始簡報</button>
+            </div>
+            <div class="card">
+                <div class="card-title">簡報說明</div>
+                <p style="color: var(--text-muted); line-height: 1.8;">
+                    簡報模式將引導您逐步展示策略藍圖的各個面向。<br>
+                    使用方向鍵或按鈕切換頁面。<br>
+                    按 ESC 鍵可退出簡報模式。
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <!-- 模態框 -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">標題</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- 簡報模式 -->
+    <div class="presentation-mode" id="presentation-mode">
+        <div class="slide" id="slide-content"></div>
+        <div class="slide-nav">
+            <button onclick="prevSlide()">← 上一頁</button>
+            <span id="slide-indicator">1 / 8</span>
+            <button onclick="nextSlide()">下一頁 →</button>
+            <button onclick="exitPresentation()">✕ 退出</button>
+        </div>
+    </div>
+
+    <!-- 通知 -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // ==================== 資料模型 ====================
+        let data = {
+            meta: {
+                companyName: '',
+                year: new Date().getFullYear() + 1,
+                lastUpdated: new Date().toISOString(),
+                version: '1.0'
+            },
+            vision: {
+                mission: '',
+                vision: '',
+                values: []
+            },
+            swot: {
+                strengths: [],
+                weaknesses: [],
+                opportunities: [],
+                threats: []
+            },
+            metrics: [],
+            strategies: [],
+            actions: [],
+            kpis: []
+        };
+
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            initNavigation();
+            renderDashboard();
+        });
+
+        function loadData() {
+            const saved = localStorage.getItem('strategyBlueprint');
+            if (saved) {
+                try {
+                    data = JSON.parse(saved);
+                } catch (e) {
+                    console.error('載入資料失敗:', e);
+                }
+            }
+        }
+
+        function saveData() {
+            data.meta.lastUpdated = new Date().toISOString();
+            localStorage.setItem('strategyBlueprint', JSON.stringify(data));
+            showNotification('資料已儲存', 'success');
+        }
+
+        // ==================== 導航 ====================
+        function initNavigation() {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const page = this.dataset.page;
+                    switchPage(page);
+                });
+            });
+        }
+
+        function switchPage(page) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.page === page);
+            });
+            document.querySelectorAll('.page').forEach(p => {
+                p.classList.toggle('active', p.id === `page-${page}`);
+            });
+
+            // 渲染對應頁面面的內容
+            switch(page) {
+                case 'dashboard': renderDashboard(); break;
+                case 'vision': renderVision(); break;
+                case 'swot': renderSwot(); break;
+                case 'metrics': renderMetrics(); break;
+                case 'strategies': renderStrategies(); break;
+                case 'actions': renderActions(); break;
+                case 'kpis': renderKpis(); break;
+            }
+        }
+
+        // ==================== 儀表板 ====================
+        function renderDashboard() {
+            document.getElementById('stat-strategies').textContent = data.strategies.length;
+            document.getElementById('stat-actions').textContent = data.actions.length;
+            document.getElementById('stat-kpis').textContent = data.kpis.length;
+
+            const totalProgress = data.actions.reduce((sum, a) => sum + (a.progress || 0), 0);
+            const avgProgress = data.actions.length > 0 ? Math.round(totalProgress / data.actions.length) : 0;
+            document.getElementById('stat-progress').textContent = avgProgress + '%';
+
+            // 最近行動方案
+            const recentActions = data.actions.slice(-5).reverse();
+            const recentContainer = document.getElementById('recent-actions');
+            if (recentActions.length === 0) {
+                recentContainer.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>尚無行動方案</p></div>';
+            } else {
+                recentContainer.innerHTML = recentActions.map(action => {
+                    const strategy = data.strategies.find(s => s.id === action.strategyId);
+                    return `
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">${action.title}</div>
+                                <div class="list-item-meta">${strategy ? strategy.title : '未指派'} · ${action.owner || '未指派'}</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${action.progress || 0}%"></div>
+                                </div>
+                            </div>
+                            <span class="status-badge status-${action.status}">${action.status}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // 即將到期 KPI
+            const now = new Date();
+            const upcomingKpis = data.kpis
+                .filter(k => k.deadline && new Date(k.deadline) > now)
+                .sort((a, b) => new Date(a.deadline) - new Date(b.deadline))
+                .slice(0, 5);
+
+            const kpiContainer = document.getElementById('upcoming-kpis');
+            if (upcomingKpis.length === 0) {
+                kpiContainer.innerHTML = '<div class="empty-state"><div class="icon">📌</div><p>尚無 KPI</p></div>';
+            } else {
+                kpiContainer.innerHTML = upcomingKpis.map(kpi => {
+                    const action = data.actions.find(a => a.id === kpi.actionId);
+                    const daysLeft = Math.ceil((new Date(kpi.deadline) - now) / (1000 * 60 * 60 * 24));
+                    return `
+                        <div class="list-item">
+                            <div class="list-item-content">
+                                <div class="list-item-title">${kpi.name}</div>
+                                <div class="list-item-meta">${action ? action.title : '未指派'} · 目標：${kpi.targetValue} ${kpi.unit}</div>
+                            </div>
+                            <span class="status-badge ${daysLeft <= 7 ? 'status-paused' : 'status-active'}">${daysLeft} 天</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // ==================== 願景與使命 ====================
+        function renderVision() {
+            document.getElementById('company-name').value = data.meta.companyName;
+            document.getElementById('company-year').value = data.meta.year;
+            document.getElementById('mission').value = data.vision.mission;
+            document.getElementById('vision').value = data.vision.vision;
+            renderValues();
+        }
+
+        function renderValues() {
+            const container = document.getElementById('values-list');
+            container.innerHTML = data.vision.values.map((value, index) => `
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <input type="text" class="form-control" value="${value}" onchange="updateValue(${index}, this.value)">
+                    </div>
+                    <div class="list-item-actions">
+                        <button class="btn-icon btn-delete" onclick="removeValue(${index})">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addValue() {
+            data.vision.values.push('');
+            renderValues();
+        }
+
+        function updateValue(index, value) {
+            data.vision.values[index] = value;
+            saveData();
+        }
+
+        function removeValue(index) {
+            data.vision.values.splice(index, 1);
+            renderValues();
+            saveData();
+        }
+
+        // 監聽願景頁面輸入
+        document.getElementById('company-name').addEventListener('change', function() {
+            data.meta.companyName = this.value;
+            saveData();
+        });
+        document.getElementById('company-year').addEventListener('change', function() {
+            data.meta.year = parseInt(this.value);
+            saveData();
+        });
+        document.getElementById('mission').addEventListener('change', function() {
+            data.vision.mission = this.value;
+            saveData();
+        });
+        document.getElementById('vision').addEventListener('change', function() {
+            data.vision.vision = this.value;
+            saveData();
+        });
+
+        // ==================== SWOT ====================
+        function renderSwot() {
+            ['strengths', 'weaknesses', 'opportunities', 'threats'].forEach(type => {
+                const container = document.getElementById(`${type}-list`);
+                container.innerHTML = data.swot[type].map((item, index) => `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <input type="text" class="form-control" value="${item}" onchange="updateSwotItem('${type}', ${index}, this.value)">
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-delete" onclick="removeSwotItem('${type}', ${index})">🗑️</button>
+                        </div>
+                    </div>
+                `).join('');
+            });
+        }
+
+        function addSwotItem(type) {
+            data.swot[type].push('');
+            renderSwot();
+        }
+
+        function updateSwotItem(type, index, value) {
+            data.swot[type][index] = value;
+            saveData();
+        }
+
+        function removeSwotItem(type, index) {
+            data.swot[type].splice(index, 1);
+            renderSwot();
+            saveData();
+        }
+
+        // ==================== 數據現況 ====================
+        let currentMetricFilter = 'all';
+
+        function renderMetrics() {
+            const search = document.getElementById('metric-search').value.toLowerCase();
+            let filtered = data.metrics;
+
+            if (currentMetricFilter !== 'all') {
+                filtered = filtered.filter(m => m.category === currentMetricFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(m => m.name.toLowerCase().includes(search));
+            }
+
+            const container = document.getElementById('metrics-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>尚無數據指標</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(metric => `
+                <div class="list-item">
+                    <div class="list-item-content">
+                        <div class="list-item-title">${metric.name}</div>
+                        <div class="list-item-meta">${metric.value} ${metric.unit} · ${metric.category}${metric.note ? ' · ' + metric.note : ''}</div>
+                    </div>
+                    <div class="list-item-actions">
+                        <button class="btn-icon btn-edit" onclick="editMetric('${metric.id}')">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="deleteMetric('${metric.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterMetrics(category) {
+            currentMetricFilter = category;
+            document.querySelectorAll('#page-metrics .filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
+            renderMetrics();
+        }
+
+        function openMetricModal(metric = null) {
+            const isEdit = metric !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯指標' : '新增指標';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>指標名稱</label>
+                    <input type="text" class="form-control" id="metric-name" value="${isEdit ? metric.name : ''}">
+                </div>
+                <div class="form-group">
+                    <label>數值</label>
+                    <input type="number" class="form-control" id="metric-value" value="${isEdit ? metric.value : ''}">
+                </div>
+                <div class="form-group">
+                    <label>單位</label>
+                    <input type="text" class="form-control" id="metric-unit" value="${isEdit ? metric.unit : ''}" placeholder="例：萬元、%、人">
+                </div>
+                <div class="form-group">
+                    <label>分類</label>
+                    <select class="form-control" id="metric-category">
+                        <option value="財務" ${isEdit && metric.category === '財務' ? 'selected' : ''}>財務</option>
+                        <option value="客戶" ${isEdit && metric.category === '客戶' ? 'selected' : ''}>客戶</option>
+                        <option value="內部流程" ${isEdit && metric.category === '內部流程' ? 'selected' : ''}>內部流程</option>
+                        <option value="學習成長" ${isEdit && metric.category === '學習成長' ? 'selected' : ''}>學習成長</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>備註</label>
+                    <input type="text" class="form-control" id="metric-note" value="${isEdit ? metric.note || '' : ''}">
+                </div>
+                <button class="btn btn-primary" onclick="saveMetric('${isEdit ? metric.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveMetric(id) {
+            const name = document.getElementById('metric-name').value;
+            const value = parseFloat(document.getElementById('metric-value').value);
+            const unit = document.getElementById('metric-unit').value;
+            const category = document.getElementById('metric-category').value;
+            const note = document.getElementById('metric-note').value;
+
+            if (!name || isNaN(value)) {
+                showNotification('請填寫必要欄位', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.metrics.findIndex(m => m.id === id);
+                if (index !== -1) {
+                    data.metrics[index] = { ...data.metrics[index], name, value, unit, category, note };
+                }
+            } else {
+                data.metrics.push({
+                    id: 'm' + Date.now(),
+                    name, value, unit, category, note
+                });
+            }
+
+            closeModal();
+            renderMetrics();
+            saveData();
+        }
+
+        function editMetric(id) {
+            const metric = data.metrics.find(m => m.id === id);
+            if (metric) openMetricModal(metric);
+        }
+
+        function deleteMetric(id) {
+            if (confirm('確定要刪除這個指標嗎？')) {
+                data.metrics = data.metrics.filter(m => m.id !== id);
+                renderMetrics();
+                saveData();
+            }
+        }
+
+        // ==================== 策略主題 ====================
+        let currentStrategyFilter = 'all';
+
+        function renderStrategies() {
+            const search = document.getElementById('strategy-search').value.toLowerCase();
+            let filtered = data.strategies;
+
+            if (currentStrategyFilter !== 'all') {
+                filtered = filtered.filter(s => s.status === currentStrategyFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(s => s.title.toLowerCase().includes(search) || s.description.toLowerCase().includes(search));
+            }
+
+            const container = document.getElementById('strategies-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><p>尚無策略主題</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(strategy => {
+                const actionCount = data.actions.filter(a => a.strategyId === strategy.id).length;
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">${strategy.title}</div>
+                            <div class="list-item-meta">${strategy.description} · ${actionCount} 個行動方案</div>
+                        </div>
+                        <span class="status-badge status-${strategy.status}">${strategy.status}</span>
+                        <span class="priority-${strategy.priority === '高' ? 'high' : strategy.priority === '中' ? 'medium' : 'low'}">${strategy.priority}</span>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-edit" onclick="editStrategy('${strategy.id}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteStrategy('${strategy.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterStrategies(status) {
+            currentStrategyFilter = status;
+            document.querySelectorAll('#page-strategies .filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.status === status);
+            });
+            renderStrategies();
+        }
+
+        function openStrategyModal(strategy = null) {
+            const isEdit = strategy !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯策略' : '新增策略';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>策略標題</label>
+                    <input type="text" class="form-control" id="strategy-title" value="${isEdit ? strategy.title : ''}">
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea class="form-control" id="strategy-description" value="${isEdit ? strategy.description : ''}"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>優先級</label>
+                    <select class="form-control" id="strategy-priority">
+                        <option value="高" ${isEdit && strategy.priority === '高' ? 'selected' : ''}>高</option>
+                        <option value="中" ${isEdit && strategy.priority === '中' ? 'selected' : ''}>中</option>
+                        <option value="低" ${isEdit && strategy.priority === '低' ? 'selected' : ''}>低</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>狀態</label>
+                    <select class="form-control" id="strategy-status">
+                        <option value="草案" ${isEdit && strategy.status === '草案' ? 'selected' : ''}>草案</option>
+                        <option value="進行中" ${isEdit && strategy.status === '進行中' ? 'selected' : ''}>進行中</option>
+                        <option value="已完成" ${isEdit && strategy.status === '已完成' ? 'selected' : ''}>已完成</option>
+                        <option value="暫停" ${isEdit && strategy.status === '暫停' ? 'selected' : ''}>暫停</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="saveStrategy('${isEdit ? strategy.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveStrategy(id) {
+            const title = document.getElementById('strategy-title').value;
+            const description = document.getElementById('strategy-description').value;
+            const priority = document.getElementById('strategy-priority').value;
+            const status = document.getElementById('strategy-status').value;
+
+            if (!title) {
+                showNotification('請填寫策略標題', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.strategies.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    data.strategies[index] = { ...data.strategies[index], title, description, priority, status };
+                }
+            } else {
+                data.strategies.push({
+                    id: 's' + Date.now(),
+                    title, description, priority, status
+                });
+            }
+
+            closeModal();
+            renderStrategies();
+            saveData();
+        }
+
+        function editStrategy(id) {
+            const strategy = data.strategies.find(s => s.id === id);
+            if (strategy) openStrategyModal(strategy);
+        }
+
+        function deleteStrategy(id) {
+            if (confirm('確定要刪除這個策略嗎？相關的行動方案也會被刪除。')) {
+                data.strategies = data.strategies.filter(s => s.id !== id);
+                data.actions = data.actions.filter(a => a.strategyId !== id);
+                renderStrategies();
+                saveData();
+            }
+        }
+
+        // ==================== 行動方案 ====================
+        let currentActionFilter = 'all';
+
+        function renderActions() {
+            const search = document.getElementById('action-search').value.toLowerCase();
+            let filtered = data.actions;
+
+            if (currentActionFilter !== 'all') {
+                filtered = filtered.filter(a => a.status === currentActionFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(a => a.title.toLowerCase().includes(search) || a.description.toLowerCase().includes(search));
+            }
+
+            const container = document.getElementById('actions-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">⚡</div><p>尚無行動方案</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(action => {
+                const strategy = data.strategies.find(s => s.id === action.strategyId);
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">${action.title}</div>
+                            <div class="list-item-meta">${strategy ? strategy.title : '未指派'} · ${action.owner || '未指派'} · ${action.startDate || '?'} ~ ${action.endDate || '?'}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${action.progress || 0}%"></div>
+                            </div>
+                        </div>
+                        <span class="status-badge status-${action.status}">${action.status}</span>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-edit" onclick="editAction('${action.id}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteAction('${action.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterActions(status) {
+            currentActionFilter = status;
+            document.querySelectorAll('#page-actions .filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.status === status);
+            });
+            renderActions();
+        }
+
+        function openActionModal(action = null) {
+            const isEdit = action !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯行動方案' : '新增行動方案';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>策略主題</label>
+                    <select class="form-control" id="action-strategy">
+                        <option value="">請選擇策略</option>
+                        ${data.strategies.map(s => `<option value="${s.id}" ${isEdit && action.strategyId === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>方案標題</label>
+                    <input type="text" class="form-control" id="action-title" value="${isEdit ? action.title : ''}">
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea class="form-control" id="action-description" value="${isEdit ? action.description : ''}"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>負責人</label>
+                    <input type="text" class="form-control" id="action-owner" value="${isEdit ? action.owner : ''}">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>開始日期</label>
+                        <input type="date" class="form-control" id="action-start" value="${isEdit ? action.startDate : ''}">
+                    </div>
+                    <div class="form-group">
+                        <label>結束日期</label>
+                        <input type="date" class="form-control" id="action-end" value="${isEdit ? action.endDate : ''}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>狀態</label>
+                    <select class="form-control" id="action-status">
+                        <option value="未開始" ${isEdit && action.status === '未開始' ? 'selected' : ''}>未開始</option>
+                        <option value="進行中" ${isEdit && action.status === '進行中' ? 'selected' : ''}>進行中</option>
+                        <option value="已完成" ${isEdit && action.status === '已完成' ? 'selected' : ''}>已完成</option>
+                        <option value="暫停" ${isEdit && action.status === '暫停' ? 'selected' : ''}>暫停</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>進度 (%)</label>
+                    <input type="number" class="form-control" id="action-progress" min="0" max="100" value="${isEdit ? action.progress || 0 : 0}">
+                </div>
+                <button class="btn btn-primary" onclick="saveAction('${isEdit ? action.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveAction(id) {
+            const strategyId = document.getElementById('action-strategy').value;
+            const title = document.getElementById('action-title').value;
+            const description = document.getElementById('action-description').value;
+            const owner = document.getElementById('action-owner').value;
+            const startDate = document.getElementById('action-start').value;
+            const endDate = document.getElementById('action-end').value;
+            const status = document.getElementById('action-status').value;
+            const progress = parseInt(document.getElementById('action-progress').value) || 0;
+
+            if (!strategyId || !title) {
+                showNotification('請填寫必要欄位', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.actions.findIndex(a => a.id === id);
+                if (index !== -1) {
+                    data.actions[index] = { ...data.actions[index], strategyId, title, description, owner, startDate, endDate, status, progress };
+                }
+            } else {
+                data.actions.push({
+                    id: 'a' + Date.now(),
+                    strategyId, title, description, owner, startDate, endDate, status, progress
+                });
+            }
+
+            closeModal();
+            renderActions();
+            saveData();
+        }
+
+        function editAction(id) {
+            const action = data.actions.find(a => a.id === id);
+            if (action) openActionModal(action);
+        }
+
+        function deleteAction(id) {
+            if (confirm('確定要刪除這個行動方案嗎？')) {
+                data.actions = data.actions.filter(a => a.id !== id);
+                renderActions();
+                saveData();
+            }
+        }
+
+        // ==================== KPI 追蹤 ====================
+        function renderKpis() {
+            const search = document.getElementById('kpi-search').value.toLowerCase();
+            let filtered = data.kpis;
+
+            if (search) {
+                filtered = filtered.filter(k => k.name.toLowerCase().includes(search));
+            }
+
+            const container = document.getElementById('kpis-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📌</div><p>尚無 KPI</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(kpi => {
+                const action = data.actions.find(a => a.id === kpi.actionId);
+                const progress = kpi.currentValue && kpi.targetValue ? Math.round((kpi.currentValue / kpi.targetValue) * 100) : 0;
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">${kpi.name}</div>
+                            <div class="list-item-meta">${action ? action.title : '未指派'} · 現況：${kpi.currentValue || 0} / 目標：${kpi.targetValue} ${kpi.unit} · 期限：${kpi.deadline || '未設定'}</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                            </div>
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-edit" onclick="editKpi('${kpi.id}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteKpi('${kpi.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openKpiModal(kpi = null) {
+            const isEdit = kpi !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯 KPI' : '新增 KPI';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>行動方案</label>
+                    <select class="form-control" id="kpi-action">
+                        <option value="">請選擇行動方案</option>
+                        ${data.actions.map(a => `<option value="${a.id}" ${isEdit && kpi.actionId === a.id ? 'selected' : ''}>${a.title}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>KPI 名稱</label>
+                    <input type="text" class="form-control" id="kpi-name" value="${isEdit ? kpi.name : ''}">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>現況值</label>
+                        <input type="number" class="form-control" id="kpi-current" value="${isEdit ? kpi.currentValue || 0 : 0}">
+                    </div>
+                    <div class="form-group">
+                        <label>目標值</label>
+                        <input type="number" class="form-control" id="kpi-target" value="${isEdit ? kpi.targetValue : ''}">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>單位</label>
+                    <input type="text" class="form-control" id="kpi-unit" value="${isEdit ? kpi.unit : ''}" placeholder="例：萬元、%、人">
+                </div>
+                <div class="form-group">
+                    <label>期限</label>
+                    <input type="date" class="form-control" id="kpi-deadline" value="${isEdit ? kpi.deadline : ''}">
+                </div>
+                <button class="btn btn-primary" onclick="saveKpi('${isEdit ? kpi.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveKpi(id) {
+            const actionId = document.getElementById('kpi-action').value;
+            const name = document.getElementById('kpi-name').value;
+            const currentValue = parseFloat(document.getElementById('kpi-current').value) || 0;
+            const targetValue = parseFloat(document.getElementById('kpi-target').value);
+            const unit = document.getElementById('kpi-unit').value;
+            const deadline = document.getElementById('kpi-deadline').value;
+
+            if (!actionId || !name || !targetValue) {
+                showNotification('請填寫必要欄位', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.kpis.findIndex(k => k.id === id);
+                if (index !== -1) {
+                    data.kpis[index] = { ...data.kpis[index], actionId, name, currentValue, targetValue, unit, deadline };
+                }
+            } else {
+                data.kpis.push({
+                    id: 'k' + Date.now(),
+                    actionId, name, currentValue, targetValue, unit, deadline
+                });
+            }
+
+            closeModal();
+            renderKpis();
+            saveData();
+        }
+
+        function editKpi(id) {
+            const kpi = data.kpis.find(k => k.id === id);
+            if (kpi) openKpiModal(kpi);
+        }
+
+        function deleteKpi(id) {
+            if (confirm('確定要刪除這個 KPI 嗎？')) {
+                data.kpis = data.kpis.filter(k => k.id !== id);
+                renderKpis();
+                saveData();
+            }
+        }
+
+        // ==================== 簡報模式 ====================
+        let currentSlide = 0;
+        let slides = [];
+
+        function startPresentation() {
+            slides = generateSlides();
+            currentSlide = 0;
+            document.getElementById('presentation-mode').classList.add('active');
+            renderSlide();
+        }
+
+        function generateSlides() {
+            const slideList = [];
+
+            // 封面
+            slideList.push({
+                title: data.meta.companyName || '公司名稱',
+                subtitle: `${data.meta.year} 年度策略藍圖`,
+                content: ''
+            });
+
+            // 願景與使命
+            if (data.vision.mission || data.vision.vision) {
+                slideList.push({
+                    title: '願景與使命',
+                    content: `
+                        ${data.vision.mission ? `<p><strong>使命：</strong>${data.vision.mission}</p>` : ''}
+                        ${data.vision.vision ? `<p><strong>願景：</strong>${data.vision.vision}</p>` : ''}
+                        ${data.vision.values.length > 0 ? `<p><strong>核心價值觀：</strong>${data.vision.values.join('、')}</p>` : ''}
+                    `
+                });
+            }
+
+            // SWOT
+            slideList.push({
+                title: 'SWOT 分析',
+                content: `
+                    <div class="grid-2" style="text-align: left;">
+                        <div>
+                            <h4 style="color: var(--success);">優勢</h4>
+                            <ul>${data.swot.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--danger);">劣勢</h4>
+                            <ul>${data.swot.weaknesses.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--secondary);">機會</h4>
+                            <ul>${data.swot.opportunities.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                        <div>
+                            <h4 style="color: #ff6b6b;">威脅</h4>
+                            <ul>${data.swot.threats.map(s => `<li>${s}</li>`).join('')}</ul>
+                        </div>
+                    </div>
+                `
+            });
+
+            // 數據現況
+            if (data.metrics.length > 0) {
+                slideList.push({
+                    title: '數據現況',
+                    content: `
+                        <div class="grid-4">
+                            ${data.metrics.map(m => `
+                                <div class="stat-card">
+                                    <div class="stat-value">${m.value}</div>
+                                    <div class="stat-label">${m.name} (${m.unit})</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `
+                });
+            }
+
+            // 策略主題
+            if (data.strategies.length > 0) {
+                slideList.push({
+                    title: '策略主題',
+                    content: data.strategies.map(s => `
+                        <div style="margin-bottom: 20px; text-align: left;">
+                            <h3>${s.title} <span class="status-badge status-${s.status}">${s.status}</span></h3>
+                            <p>${s.description}</p>
+                        </div>
+                    `).join('')
+                });
+            }
+
+            // 行動方案
+            if (data.actions.length > 0) {
+                slideList.push({
+                    title: '行動方案',
+                    content: data.actions.map(a => {
+                        const strategy = data.strategies.find(s => s.id === a.strategyId);
+                        return `
+                            <div style="margin-bottom: 15px; text-align: left;">
+                                <strong>${a.title}</strong> <span class="status-badge status-${a.status}">${a.status}</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${a.progress || 0}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                });
+            }
+
+            // KPI
+            if (data.kpis.length > 0) {
+                slideList.push({
+                    title: 'KPI 追蹤',
+                    content: data.kpis.map(k => {
+                        const action = data.actions.find(a => a.id === k.actionId);
+                        const progress = k.currentValue && k.targetValue ? Math.round((k.currentValue / k.targetValue) * 100) : 0;
+                        return `
+                            <div style="margin-bottom: 15px; text-align: left;">
+                                <strong>${k.name}</strong>：${k.currentValue || 0} / ${k.targetValue} ${k.unit} (${progress}%)
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                });
+            }
+
+            // 結尾
+            slideList.push({
+                title: '謝謝',
+                subtitle: 'Q & A',
+                content: ''
+            });
+
+            return slideList;
+        }
+
+        function renderSlide() {
+            const slide = slides[currentSlide];
+            document.getElementById('slide-content').innerHTML = `
+                <h1>${slide.title}</h1>
+                ${slide.subtitle ? `<h2>${slide.subtitle}</h2>` : ''}
+                <div class="slide-content">${slide.content}</div>
+            `;
+            document.getElementById('slide-indicator').textContent = `${currentSlide + 1} / ${slides.length}`;
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                renderSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide();
+            }
+        }
+
+        function exitPresentation() {
+            document.getElementById('presentation-mode').classList.remove('active');
+        }
+
+        // 鍵盤事件
+        document.addEventListener('keydown', function(e) {
+            if (document.getElementById('presentation-mode').classList.contains('active')) {
+                if (e.key === 'ArrowRight' || e.key === ' ') nextSlide();
+                if (e.key === 'ArrowLeft') prevSlide();
+                if (e.key === 'Escape') exitPresentation();
+            }
+        });
+
+        // ==================== 匯出匯入 ====================
+        function exportData() {
+            const dataStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `strategy-blueprint-${data.meta.year}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('匯出成功', 'success');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    data = imported;
+                    saveData();
+                    renderDashboard();
+                    showNotification('匯入成功', 'success');
+                } catch (err) {
+                    showNotification('匯入失敗：檔案格式錯誤', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetData() {
+            if (confirm('確定要重設所有資料嗎？此操作無法復原。')) {
+                data = {
+                    meta: { companyName: '', year: new Date().getFullYear() + 1, lastUpdated: new Date().toISOString(), version: '1.0' },
+                    vision: { mission: '', vision: '', values: [] },
+                    swot: { strengths: [], weaknesses: [], opportunities: [], threats: [] },
+                    metrics: [],
+                    strategies: [],
+                    actions: [],
+                    kpis: []
+                };
+                saveData();
+                renderDashboard();
+                showNotification('已重設', 'success');
+            }
+        }
+
+        // ==================== 模態框 ====================
+        function closeModal(event) {
+            if (!event || event.target === document.getElementById('modal-overlay')) {
+                document.getElementById('modal-overlay').classList.remove('active');
+            }
+        }
+
+        // ==================== 通知 ====================
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
