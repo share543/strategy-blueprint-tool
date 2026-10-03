@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遞迴自我改進模組 — 策略藍圖發展工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #E8447A;
+            --secondary: #F5B301;
+            --dark: #2B2B33;
+            --light: #E8F3FB;
+            --bg: #1a1a2e;
+            --card-bg: #252540;
+            --text: #E8F3FB;
+            --text-muted: #8892b0;
+            --success: #00C9A7;
+            --warning: #F5B301;
+            --danger: #E8447A;
+            --info: #4FC3F7;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 28px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        h2 {
+            font-size: 20px;
+            color: var(--secondary);
+            margin: 30px 0 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(245, 179, 1, 0.3);
+        }
+
+        h3 {
+            font-size: 16px;
+            color: var(--info);
+            margin: 20px 0 10px;
+        }
+
+        p {
+            line-height: 1.8;
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .card-accent {
+            border-left: 4px solid var(--primary);
+        }
+
+        .card-success {
+            border-left: 4px solid var(--success);
+        }
+
+        .card-warning {
+            border-left: 4px solid var(--warning);
+        }
+
+        .card-info {
+            border-left: 4px solid var(--info);
+        }
+
+        .loop-diagram {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 2;
+            overflow-x: auto;
+            white-space: pre;
+            color: var(--success);
+        }
+
+        .loop-diagram .highlight {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+
+        .loop-diagram .arrow {
+            color: var(--info);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric-card {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(232, 243, 251, 0.05);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list .icon {
+            color: var(--success);
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .feature-list .text {
+            flex: 1;
+        }
+
+        .feature-list .text strong {
+            color: var(--secondary);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .tag-v1 {
+            background: rgba(0, 201, 167, 0.2);
+            color: var(--success);
+        }
+
+        .tag-v2 {
+            background: rgba(79, 195, 247, 0.2);
+            color: var(--info);
+        }
+
+        .tag-v3 {
+            background: rgba(232, 68, 122, 0.2);
+            color: var(--danger);
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+
+        .comparison-table th {
+            background: var(--bg);
+            padding: 12px;
+            text-align: left;
+            color: var(--secondary);
+            font-weight: 600;
+            border-bottom: 2px solid rgba(245, 179, 1, 0.3);
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(232, 243, 251, 0.05);
+        }
+
+        .comparison-table tr:hover td {
+            background: rgba(232, 243, 251, 0.02);
+        }
+
+        .progress-bar {
+            height: 8px;
+            background: var(--bg);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill-green {
+            background: var(--success);
+        }
+
+        .progress-fill-yellow {
+            background: var(--warning);
+        }
+
+        .progress-fill-red {
+            background: var(--danger);
+        }
+
+        .code-block {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow-x: auto;
+            border: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        .code-block .keyword {
+            color: var(--info);
+        }
+
+        .code-block .string {
+            color: var(--success);
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+        }
+
+        .code-block .number {
+            color: var(--secondary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #d1336a;
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text);
+            border: 1px solid rgba(232, 243, 251, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(232, 243, 251, 0.1);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: var(--bg);
+        }
+
+        .btn-success:hover {
+            background: #00b093;
+        }
+
+        .section {
+            margin-bottom: 40px;
+        }
+
+        .highlight-box {
+            background: rgba(232, 68, 122, 0.1);
+            border: 1px solid rgba(232, 68, 122, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin: 15px 0;
+        }
+
+        .highlight-box.warning {
+            background: rgba(245, 179, 1, 0.1);
+            border-color: rgba(245, 179, 1, 0.3);
+        }
+
+        .highlight-box.success {
+            background: rgba(0, 201, 167, 0.1);
+            border-color: rgba(0, 201, 167, 0.3);
+        }
+
+        .highlight-box.info {
+            background: rgba(79, 195, 247, 0.1);
+            border-color: rgba(79, 195, 247, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>遞迴自我改進模組</h1>
+        <p class="subtitle">Recursive Self-Improvement Module for Strategy Blueprint Tool v1.0</p>
+
+        <!-- 概述 -->
+        <div class="section">
+            <h2>核心概念</h2>
+            <div class="card card-accent">
+                <p><strong>遞迴自我改進</strong>是指系統能夠評估自身表現、識別改進空間、並自動調整策略的能力。</p>
+                <p>在策略藍圖工具中，這意味著：</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">📊</span>
+                        <span class="text"><strong>追蹤使用效果</strong> — 記錄每次策略規劃的成效指標</span>
+                    </li>
+                    <li>
+                        <span class="icon">🔍</span>
+                        <span class="text"><strong>識別模式</strong> — 分析哪些策略類型成功率較高</span>
+                    </li>
+                    <li>
+                        <span class="icon">💡</span>
+                        <span class="text"><strong>生成建議</strong> — 基於數據提出改进建議</span>
+                    </li>
+                    <li>
+                        <span class="icon">🔄</span>
+                        <span class="text"><strong>迭代優化</strong> — 持續調整策略框架</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 改進迴圈 -->
+        <div class="section">
+            <h2>改進迴圈 (Improvement Loop)</h2>
+            <div class="loop-diagram">
+<span class="highlight">┌─────────────────────────────────────────────────────────────┐</span>
+<span class="highlight">│                    遞迴自我改進迴圈                              │</span>
+<span class="highlight">└─────────────────────────────────────────────────────────────┘</span>
+
+    <span class="arrow">↓</span>
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   1. 執行    │ →  │   2. 測量    │ →  │   3. 分析    │ →  │   4. 學習    │
+│   Execute   │    │   Measure   │    │   Analyze   │    │   Learn     │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+    <span class="arrow">↑</span>                                                      <span class="arrow">↓</span>
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   8. 迭代    │ ←  │   7. 部署    │ ←  │   6. 驗證    │ ←  │   5. 改進    │
+│  Iterate    │    │   Deploy    │    │   Validate  │    │   Improve   │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+            <span class="arrow">──────────────────────────────────────────────────→</span>
+            </div>
+        </div>
+
+        <!-- 三层改進 -->
+        <div class="section">
+            <h2>三層改進架構</h2>
+
+            <div class="card card-success">
+                <h3><span class="tag tag-v1">Layer 1</span> 資料層改進</h3>
+                <p><strong>目標：</strong>優化資料輸入品質與完整性</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">資料完整性檢查 — 自動識別缺失欄位</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">數據品質評分 — 評估數據可靠性</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">歷史數據對比 — 與前期數據自動比較</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card card-info">
+                <h3><span class="tag tag-v2">Layer 2</span> 策略層改進</h3>
+                <p><strong>目標：</strong>提升策略規劃的有效性與執行力</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">策略成效追蹤 — 記錄每個策略的執行結果</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">優先級動態調整 — 根據成效自動調整優先級</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">依賴關係分析 — 識別策略間的相互影響</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card card-accent">
+                <h3><span class="tag tag-v3">Layer 3</span> 框架層改進</h3>
+                <p><strong>目標：</strong>進化策略框架本身的結構與邏輯</p>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">框架使用統計 — 分析哪些模組最常被使用</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">流程瓶頸識別 — 找出規劃流程中的卡點</span>
+                    </li>
+                    <li>
+                        <span class="icon">✓</span>
+                        <span class="text">自動化建議 — 提出框架改進建議</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 核心功能 -->
+        <div class="section">
+            <h2>核心功能設計</h2>
+
+            <div class="card">
+                <h3>1. 成效追蹤器 (Outcome Tracker)</h3>
+                <p>追蹤每個策略主題與行動方案的執行成效：</p>
+                <div class="code-block">
+<span class="comment">// 成效資料結構</span>
+<span class="keyword">interface</span> Outcome {
+  strategyId: <span class="string">string</span>;
+  actionId: <span class="string">string</span>;
+  plannedValue: <span class="number">number</span>;      <span class="comment">// 計畫值</span>
+  actualValue: <span class="number">number</span>;       <span class="comment">// 實際值</span>
+  completionRate: <span class="number">number</span>;    <span class="comment">// 完成率 0-1</span>
+  impactScore: <span class="number">number</span>;       <span class="comment">// 影響評分 1-5</span>
+  feedback: <span class="string">string</span>;          <span class="comment">// 執行回饋</span>
+  timestamp: <span class="string">string</span>;         <span class="comment">// 記錄時間</span>
+}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>2. 模式識別引擎 (Pattern Engine)</h3>
+                <p>識別成功與失敗策略的特徵模式：</p>
+                <div class="code-block">
+<span class="comment">// 模式識別維度</span>
+<span class="keyword">const</span> PATTERNS = {
+  success: [
+    <span class="string">"有明確負責人的策略"</span>,
+    <span class="string">"KPI 目標值具體可量化"</span>,
+    <span class="string">"有定期進度追蹤"</span>,
+    <span class="string">"SWOT 分析完整"</span>
+  ],
+  failure: [
+    <span class="string">"負責人不明確"</span>,
+    <span class="string">"KPI 過於模糊"</span>,
+    <span class="string">"缺乏進度追蹤"</span>,
+    <span class="string">"策略與數據脫節"</span>
+  ]
+};
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>3. 改進建議生成器 (Improvement Generator)</h3>
+                <p>基於成效數據自動生成改進建議：</p>
+                <div class="code-block">
+<span class="comment">// 建議生成邏輯</span>
+<span class="keyword">function</span> <span class="string">generateSuggestions</span>(outcomes) {
+  <span class="keyword">const</span> suggestions = [];
+  
+  <span class="comment">// 識別低於預期的策略</span>
+  <span class="keyword">const</span> underperforming = outcomes
+    .filter(o => o.completionRate < <span class="number">0.6</span>);
+  
+  <span class="comment">// 生成針對性建議</span>
+  underperforming.forEach(o => {
+    suggestions.push({
+      strategyId: o.strategyId,
+      issue: <span class="string">"完成率低於預期"</span>,
+      action: <span class="string">"重新檢視資源分配與時程規劃"</span>
+    });
+  });
+  
+  <span class="keyword">return</span> suggestions;
+}
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>4. 版本對比系統 (Version Comparator)</h3>
+                <p>比較不同版本的策略規劃，識別改進效果：</p>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>指標</th>
+                            <th>v1.0</th>
+                            <th>v1.1</th>
+                            <th>趨勢</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>平均完成率</td>
+                            <td>45%</td>
+                            <td>62%</td>
+                            <td style="color: var(--success);">↑ +17%</td>
+                        </tr>
+                        <tr>
+                            <td>KPI 達成率</td>
+                            <td>38%</td>
+                            <td>55%</td>
+                            <td style="color: var(--success);">↑ +17%</td>
+                        </tr>
+                        <tr>
+                            <td>規劃時間</td>
+                            <td>8 小時</td>
+                            <td>5 小時</td>
+                            <td style="color: var(--success);">↓ -37%</td>
+                        </tr>
+                        <tr>
+                            <td>資料完整性</td>
+                            <td>60%</td>
+                            <td>85%</td>
+                            <td style="color: var(--success);">↑ +25%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 資料模型 -->
+        <div class="section">
+            <h2>資料模型擴展</h2>
+            <div class="card">
+                <h3>新增資料結構</h3>
+                <div class="code-block">
+<span class="comment">// 成效紀錄</span>
+<span class="keyword">interface</span> OutcomeRecord {
+  id: <span class="string">string</span>;
+  strategyId: <span class="string">string</span>;
+  actionId: <span class="string">string</span>;
+  kpiId: <span class="string">string</span>;
+  period: <span class="string">string</span>;           <span class="comment">// 2026-Q4</span>
+  planned: {
+    target: <span class="number">number</span>;
+    deadline: <span class="string">string</span>;
+  };
+  actual: {
+    value: <span class="number">number</span>;
+    completedAt: <span class="string">string</span>;
+  };
+  evaluation: {
+    score: <span class="number">number</span>;          <span class="comment">// 1-5</span>
+    notes: <span class="string">string</span>;
+    lessons: <span class="string">string</span>[];       <span class="comment">// 經驗教訓</span>
+  };
+  timestamp: <span class="string">string</span>;
+}
+
+<span class="comment">// 改進建議</span>
+<span class="keyword">interface</span> ImprovementSuggestion {
+  id: <span class="string">string</span>;
+  type: <span class="string">'strategy'</span> | <span class="string">'action'</span> | <span class="string">'kpi'</span> | <span class="string">'framework'</span>;
+  targetId: <span class="string">string</span>;
+  issue: <span class="string">string</span>;
+  suggestion: <span class="string">string</span>;
+  priority: <span class="string">'high'</span> | <span class="string">'medium'</span> | <span class="string">'low'</span>;
+  status: <span class="string">'pending'</span> | <span class="string">'accepted'</span> | <span class="string">'rejected'</span> | <span class="string">'implemented'</span>;
+  createdAt: <span class="string">string</span>;
+  implementedAt: <span class="string">string</span>;
+}
+
+<span class="comment">// 框架演進紀錄</span>
+<span class="keyword">interface</span> FrameworkEvolution {
+  version: <span class="string">string</span>;
+  changes: <span class="string">string</span>[];
+  rationale: <span class="string">string</span>;
+  metricsBefore: <span class="number">number</span>;
+  metricsAfter: <span class="number">number</span>;
+  timestamp: <span class="string">string</span>;
+}
+                </div>
+            </div>
+        </div>
+
+        <!-- 實作路線圖 -->
+        <div class="section">
+            <h2>實作路線圖</h2>
+
+            <div class="card card-success">
+                <h3>Phase 1 — 基礎建設 (v1.1)</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">📋</span>
+                        <span class="text">新增「成效追蹤」頁面 — 記錄每期執行結果</span>
+                    </li>
+                    <li>
+                        <span class="icon">📊</span>
+                        <span class="text">儀表板增加「歷史趨勢」圖表</span>
+                    </li>
+                    <li>
+                        <span class="icon">🔔</span>
+                        <span class="text">KPI 達成率自動計算與警示</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card card-info">
+                <h3>Phase 2 — 智能分析 (v1.2)</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">🤖</span>
+                        <span class="text">模式識別引擎 — 自動識別成敗因素</span>
+                    </li>
+                    <li>
+                        <span class="icon">💡</span>
+                        <span class="text">改進建議生成器 — 數據驅動的建議</span>
+                    </li>
+                    <li>
+                        <span class="icon">📈</span>
+                        <span class="text">策略成效評分系統 — 量化策略品質</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card card-accent">
+                <h3>Phase 3 — 自動進化 (v2.0)</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">🔄</span>
+                        <span class="text">自動迭代建議 — 系統自動提出框架調整方案</span>
+                    </li>
+                    <li>
+                        <span class="icon">🧠</span>
+                        <span class="text">機器學習整合 — 預測策略成功率</span>
+                    </li>
+                    <li>
+                        <span class="icon">🌐</span>
+                        <span class="text">跨組織學習 — 匿名化最佳實踐分享</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 預期效益 -->
+        <div class="section">
+            <h2>預期效益</h2>
+
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-value">+30%</div>
+                    <div class="metric-label">策略達成率提升</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-fill-green" style="width: 70%"></div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">-40%</div>
+                    <div class="metric-label">規劃時間縮短</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-fill-green" style="width: 60%"></div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">2x</div>
+                    <div class="metric-label">決策速度提升</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill progress-fill-yellow" style="width: 50%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="highlight-box success">
+                <strong>關鍵洞察：</strong>遞迴自我改進的核心不是「變得更聰明」，而是「變得更有紀律」。透過結構化的回饋迴圈，系統能夠持續累積經驗，避免重複犯錯。
+            </div>
+        </div>
+
+        <!-- 操作說明 -->
+        <div class="section">
+            <h2>下一步行動</h2>
+
+            <div class="card">
+                <h3>立即可做</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">1</span>
+                        <span class="text">在現有工具新增「成效追蹤」頁面</span>
+                    </li>
+                    <li>
+                        <span class="icon">2</span>
+                        <span class="text">設計成效資料輸入表單</span>
+                    </li>
+                    <li>
+                        <span class="icon">3</span>
+                        <span class="text">實作歷史數據對比功能</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>中期目標</h3>
+                <ul class="feature-list">
+                    <li>
+                        <span class="icon">4</span>
+                        <span class="text">整合模式識別引擎</span>
+                    </li>
+                    <li>
+                        <span class="icon">5</span>
+                        <span class="text">開發改進建議生成器</span>
+                    </li>
+                    <li>
+                        <span class="icon">6</span>
+                        <span class="text">建立框架演進紀錄系統</span>
+                    </li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn btn-primary" onclick="window.print()">📄 列印規格書</button>
+                <button class="btn btn-secondary" onclick="window.open('https://github.com/share543/strategy-blueprint-tool', '_blank')">🔗 查看 Repo</button>
+                <button class="btn btn-success" onclick="startImplementation()">🚀 開始實作</button>
+            </div>
+        </div>
+
+        <!-- 頁腳 -->
+        <div class="card" style="text-align: center; color: var(--text-muted);">
+            <p>遞迴自我改進模組 v1.0 | 策略藍圖發展工具擴充</p>
+            <p style="font-size: 12px; margin-top: 10px;">
+                「改進不是終點，而是新的起點。」— 遞迴自我改進的核心精神
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function startImplementation() {
+            const confirmed = confirm('開始實作遞迴自我改進模組？\n\n這將：\n1. 新增成效追蹤頁面\n2. 擴展資料模型\n3. 實作歷史對比功能\n\n確定開始？');
+            
+            if (confirmed) {
+                alert('實作計畫已啟動！\n\n請參考「實作路線圖」段落，依 Phase 1 → Phase 2 → Phase 3 順序進行。');
+            }
+        }
+
+        // 頁面載入動畫
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card');
+            cards.forEach((card, index) => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'all 0.5s ease';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
+    </script>
+</body>
+</html>
