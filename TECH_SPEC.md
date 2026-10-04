@@ -1,6 +1,6 @@
 # 技術規格書 — 策略藍圖發展工具
 
-> Strategy Blueprint Tool Technical Specification v1.0
+> Strategy Blueprint Tool Technical Specification v2.0
 
 ---
 
@@ -9,7 +9,7 @@
 | 項目 | 規格 |
 |------|------|
 | 系統名稱 | 策略藍圖發展工具 (Strategy Blueprint Tool) |
-| 版本 | 1.0.0 |
+| 版本 | 2.0.0 |
 | 架構 | 單頁應用 (SPA) |
 | 部署 | GitHub Pages (靜態託管) |
 | 相依性 | 無（零外部套件） |
@@ -21,12 +21,14 @@
 
 ```
 strategy-blueprint-tool/
-├── index.html          # 主程式（HTML + CSS + JS 單檔）
-├── schema.json         # 資料模型定義 (JSON Schema)
-├── README.md           # 使用說明
-├── TECH_SPEC.md        # 本文件
-├── CHANGELOG.md        # 版本變更紀錄
-└── LICENSE             # MIT 授權
+├── index.html                    # 主程式（HTML + CSS + JS 單檔，約 98KB）
+├── schema.json                   # 資料模型定義 v2.0 (JSON Schema)
+├── README.md                     # 使用說明
+├── TECH_SPEC.md                  # 本文件
+├── CHANGELOG.md                  # 版本變更紀錄
+├── HANDOFF.md                    # 交接文件
+├── LICENSE                       # MIT 授權
+└── recursive-self-improvement.html  # 概念規格書（功能已內建）
 ```
 
 ---
@@ -44,7 +46,17 @@ interface StrategyBlueprint {
   strategies: Strategy[];
   actions: Action[];
   kpis: Kpi[];
+  outcomes: Outcome[];        // v2.0 新增 —— 遞迴改進的輸入
+  suggestions: Suggestion[];  // v2.0 新增 —— 遞迴改進的產出
 }
+
+/**
+ * 資料正規化 —— v1.0 → v2.0 的遷移點。
+ * 舊版 JSON 缺 outcomes / suggestions，直接 render 會拋
+ * TypeError: Cannot read properties of undefined (reading 'length')
+ */
+function normalizeData(raw: object): StrategyBlueprint;  // 補齊所有欄位 + 升版
+function blankData(): StrategyBlueprint;                 // 空資料的單一來源
 ```
 
 ### 3.2 各模組定義
@@ -121,6 +133,48 @@ interface StrategyBlueprint {
 | targetValue | number | ✓ | 目標值 |
 | unit | string | ✓ | 單位 |
 | deadline | string (date) | | 期限 |
+
+#### Outcome（v2.0 新增）
+
+成效追蹤紀錄 —— 遞迴自我改進的**輸入**。
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| id | string | ✓ | 唯一識別碼 (前綴 `o`) |
+| strategyId | string | ✓ | 所屬策略 ID |
+| period | string | | 期間標記，例：2026-Q4 |
+| completionRate | number | ✓ | 完成率 0-100 |
+| score | number | ✓ | 成效評分 1-5 |
+| notes | string | | 備註 / 經驗教訓 |
+
+#### Suggestion（v2.0 新增）
+
+改進建議 —— 遞迴自我改進的**產出**。
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| id | string | ✓ | 唯一識別碼 (前綴 `sg`) |
+| issue | string | ✓ | 問題描述 |
+| suggestion | string | ✓ | 改進建議內容 |
+| priority | enum | ✓ | 優先級：高/中/低 |
+| status | enum | ✓ | 待處理/已接受/已拒絕/已實施 |
+
+---
+
+## 3.3 關聯圖與 cascade 規則
+
+```
+strategies ──┬── actions ──── kpis
+             │
+             └── outcomes ──── suggestions（跨策略，不隨刪除自動移除）
+```
+
+| 刪除目標 | 連帶刪除 | 保留 |
+|---------|---------|------|
+| 策略 | 該策略下所有 actions → 指向那些 action 的 kpis → 該策略的 outcomes | suggestions |
+| action | 指向它的 kpis | outcomes（掛在 strategy 上） |
+
+**理由**：孤兒紀錄會讓儀表板與簡報的數字失真 —— 這是要拿給管理層看的東西。
 
 ---
 
@@ -249,9 +303,25 @@ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft JhengHei'
 // 全域資料物件
 let data = { /* StrategyBlueprint */ };
 
+// 正規化 —— v1.0 → v2.0 遷移的關鍵
+function normalizeData(raw) {
+  // 逐欄位檢查型別，缺漏就補預設值（陣列補 []、字串補 ''、物件補 {}）
+  // 同時把 meta.version 升為 '2.0'
+  return d;
+}
+function blankData() { /* 空資料的單一來源 */ }
+
 // 生命週期
-function loadData() { /* 從 localStorage 讀取 */ }
-function saveData() { /* 寫入 localStorage */ }
+function loadData()    { /* localStorage → normalizeData() → data */ }
+function saveData()    { /* data → localStorage */ }
+function countItems(d) { /* 統計各類項目數，用於匯入訊息 */ }
+
+// 刪除時的關聯清理
+function cascadeDelete({ strategyId, actionId }) {
+  // 刪策略 → strategies + actions + kpis + outcomes
+  // 刪行動 → actions + kpis
+  // suggestions 不動（跨策略，由使用者判斷）
+}
 ```
 
 ### 6.2 導航層
@@ -277,6 +347,8 @@ function switchPage(page) {
 | `renderStrategies()` | 策略列表 + 篩選 |
 | `renderActions()` | 行動方案列表 + 篩選 |
 | `renderKpis()` | KPI 列表 |
+| `renderOutcomes()` | 成效追蹤列表 + 統計（v2.0） |
+| `renderSuggestions()` | 改進建議列表 + 統計（v2.0） |
 | `renderValues()` | 價值觀列表 |
 | `renderSlide()` | 簡報頁面渲染 |
 
@@ -288,6 +360,8 @@ function switchPage(page) {
 | `openStrategyModal()` | 開啟策略編輯 Modal |
 | `openActionModal()` | 開啟行動方案編輯 Modal |
 | `openKpiModal()` | 開啟 KPI 編輯 Modal |
+| `openOutcomeModal()` | 開啟成效編輯 Modal（v2.0） |
+| `openSuggestionModal()` | 開啟建議編輯 Modal（v2.0） |
 
 ### 6.5 簡報層
 
@@ -334,9 +408,34 @@ function generateSlides() {
 | 項目 | 措施 |
 |------|------|
 | 資料儲存 | 僅存本地 localStorage，無網路傳輸 |
-| XSS 防護 | 使用 `textContent` 或 escape HTML |
+| **XSS 防護** | 所有使用者輸入經 `esc()` 轉義後才進 `innerHTML`，**包含屬性值**（`value="..."`）與 `<option>` 標籤 |
+| **CSS class 注入** | 狀態/優先級經 `STATUS_CLASS` / `PRIORITY_CLASS` 白名單對照，不讓使用者字串直接成為 class |
+| **數值處理** | `num()` 過濾 NaN、`pct()` 夾限範圍，避免 `undefined` / `Infinity` 進畫面 |
+| **資料完整性** | `normalizeData()` 保證結構完整；`cascadeDelete()` 清理關聯紀錄 |
+| 毀損資料 | 降級為空白 + 明示提示，不靜默載入半殘資料 |
 | CSP | 支援 Content Security Policy |
 | 依賴 | 零外部套件，無供應鏈風險 |
+
+### XSS 測試方法（重要）
+
+`innerHTML` 裡的 `<script>` 標籤**不會**執行，但 `<img src=x onerror=...>` **會**。
+測試時務必用 img/onerror 驗證 —— 用 script 會得到假的「安全」結論。
+
+```javascript
+// 驗證方式
+data.strategies.push({ id:'x', title:'<img src=x onerror="window.__XSS=1">', ... });
+renderStrategies();
+// 檢查：document.querySelector('img[onerror]') 應為 null，且 window.__XSS 應為 0
+```
+
+### 輔助函式
+
+| 函式 | 用途 |
+|------|------|
+| `esc(s)` | HTML 轉義（`& < > " '` → 實體） |
+| `num(v, d)` | 解析為數值，NaN 回退預設值 |
+| `pct(v, max)` | 夾限在 0..max 的數值 |
+| `cls(v, map, fallback)` | 白名單 class 對照 |
 
 ---
 
@@ -445,10 +544,36 @@ chore: 其他
 | 策略 | 策略 CRUD、篩選、搜尋 |
 | 行動 | 方案 CRUD、篩選、搜尋、進度 |
 | KPI | KPI CRUD、搜尋、進度計算 |
-| 簡報 | 頁面生成、導航、退出 |
+| 成效 | 成效 CRUD、統計計算（平均評分/完成率） |
+| 建議 | 建議 CRUD、狀態篩選、統計計算 |
+| 簡報 | 頁面生成、導航、退出、含成效頁 |
 | 匯出/匯入 | JSON 格式正確、資料完整 |
 
-### 13.2 相容性測試
+### 13.2 資料完整性測試（v2.0 新增）
+
+| 測試項 | 預期結果 |
+|--------|---------|
+| 匯入 v1.0 舊 JSON | 自動補齊欄位，十頁 render 無錯誤 |
+| 匯入毀損 JSON | 降級為空白 + 顯示提示 |
+| 刪除策略 | 連帶清除 actions / kpis / outcomes，suggestions 保留 |
+| 刪除行動方案 | 連帶清除指向它的 kpis，outcomes 不受影響 |
+| 重設資料 | 所有欄位歸零（含 v2.0 新增欄位） |
+| 數值為 0 | 正確顯示 0，不被 `||` 誤判為空 |
+
+### 13.3 安全測試
+
+| 測試項 | 方法 | 預期結果 |
+|--------|------|---------|
+| XSS（文字） | 標題輸入 `<img src=x onerror="window.__XSS=1">` | 無 img 元素、`window.__XSS === 0`、原字串顯示為文字 |
+| XSS（屬性） | 檢查 `value="..."` 是否有未轉義插值 | 全部經 `esc()` |
+| XSS（option） | 檢查 `<option>` 標籤內容 | 全部經 `esc()` |
+| class 注入 | 狀態設為 `"><script>` | 只顯示為文字，不產生新 class |
+| NaN 顯示 | 目標值設為非數字 | 顯示 0 或預設值，不顯示 NaN |
+
+> ⚠ **測 XSS 務必用 img/onerror，不要用 `<script>`** ——
+> innerHTML 裡的 script 標籤本來就不會執行，會得到假的「安全」結論。
+
+### 13.4 相容性測試
 
 | 瀏覽器 | 測試項目 |
 |--------|----------|
@@ -457,7 +582,7 @@ chore: 其他
 | Firefox | 所有功能 |
 | Safari | 所有功能 |
 
-### 13.3 響應式測試
+### 13.5 響應式測試
 
 | 螢幕尺寸 | 測試項目 |
 |----------|----------|
@@ -469,25 +594,31 @@ chore: 其他
 
 ## 14. 版本規劃
 
-### v1.0（目前）
+### v2.0（目前 — 2026-10-04）
 
-- ✅ 完整功能模組
-- ✅ 簡報模式
-- ✅ JSON 匯出/匯入
+- ✅ 完整功能模組（願景 → SWOT → 數據 → 策略 → 行動 → KPI）
+- ✅ 成效追蹤 + 改進建議（遞迴自我改進）
+- ✅ 簡報模式（9 頁）
+- ✅ JSON 匯出/匯入 + 舊版資料自動遷移（`normalizeData`）
+- ✅ XSS 防護（`esc()` + class 白名單 + `num()`/`pct()`）
+- ✅ cascade 刪除（`cascadeDelete()`）
 
-### v1.1
+### v2.1（規劃中）
 
-- [ ] 多語言支援
+- [ ] **自動推導改進建議** —— 從成效紀錄主動發現問題，門檻值可調
+- [ ] 歷史趨勢圖表（跨期比較）
+- [ ] 資料健康檢查
+- [ ] 深色/淺色主題切換
 - [ ] 簡報匯出 PDF
-- [ ] 資料驗證
+- [ ] 多語言支援
 
-### v2.0
+### v3.0（規劃中）
 
-- [ ] 多人協作
-- [ ] 雲端同步
+- [ ] 多人協作（WebSocket）
+- [ ] 雲端同步（Firebase）
 - [ ] 歷史版本
 - [ ] 圖表視覺化
 
 ---
 
-> Technical Specification v1.0 — 2026-10-02
+> Technical Specification v2.0 — 2026-10-04
