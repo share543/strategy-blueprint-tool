@@ -655,6 +655,141 @@
 
         .notification.success { border-left: 4px solid var(--success); }
         .notification.error { border-left: 4px solid var(--danger); }
+        .notification.info { border-left: 4px solid #4FC3F7; }
+
+        /* 通知內容較長時的樣式 */
+        .notification.long {
+            max-width: 420px;
+            line-height: 1.7;
+            font-size: 13px;
+            white-space: pre-line;
+        }
+
+        /* KPI 方向標記（v2.1） */
+        .kpi-dir {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            background: rgba(232, 68, 122, 0.18);
+            color: var(--danger);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+
+        /* 洞察提示（v2.1） */
+        .insight-box {
+            background: var(--card-bg);
+            border: 1px solid rgba(79, 195, 247, 0.28);
+            border-left: 4px solid #4FC3F7;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+        }
+        .insight-box:empty { display: none; }
+        .insight-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #4FC3F7;
+            margin-bottom: 10px;
+        }
+        .insight-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(232, 243, 251, 0.05);
+        }
+        .insight-item:last-child { border-bottom: none; }
+        .insight-item .dot { color: var(--warning); font-size: 14px; }
+        .insight-item .txt { flex: 1; }
+        .insight-item .go {
+            font-size: 12px;
+            color: var(--secondary);
+            cursor: pointer;
+            text-decoration: underline;
+            white-space: nowrap;
+        }
+
+        /* 自動推導草稿卡片（v2.1） */
+        .note-box {
+            background: rgba(79, 195, 247, 0.08);
+            border-left: 3px solid #4FC3F7;
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.8;
+            margin-bottom: 16px;
+        }
+        .draft-card {
+            display: flex;
+            gap: 10px;
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid rgba(232, 243, 251, 0.1);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        .draft-check {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .draft-check input { width: 18px; height: 18px; cursor: pointer; }
+        .draft-pri {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .draft-pri-高 { background: rgba(232, 68, 122, 0.25); color: var(--danger); }
+        .draft-pri-中 { background: rgba(245, 179, 1, 0.25); color: var(--secondary); }
+        .draft-pri-低 { background: rgba(0, 201, 167, 0.2); color: var(--success); }
+        .draft-body { flex: 1; min-width: 0; }
+        .draft-issue {
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        .draft-suggestion { min-height: 56px; font-size: 13px; }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(232, 243, 251, 0.1);
+        }
+
+        /* 自動生成的建議標記 */
+        .auto-tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(79, 195, 247, 0.2);
+            color: #4FC3F7;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .linked-tag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 1px 6px;
+            border-radius: 4px;
+            background: rgba(0, 201, 167, 0.18);
+            color: var(--success);
+            margin-right: 6px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -903,8 +1038,12 @@
         <div id="page-outcomes" class="page">
             <div class="toolbar">
                 <h2>成效追蹤</h2>
-                <button class="btn btn-primary" onclick="openOutcomeModal()">+ 新增成效</button>
+                <div class="toolbar-actions">
+                    <button class="btn btn-success" onclick="openAutoSuggestModal()">💡 自動推導建議</button>
+                    <button class="btn btn-primary" onclick="openOutcomeModal()">+ 新增成效</button>
+                </div>
             </div>
+            <div id="insight-flags"></div>
             <div class="grid-4" style="margin-bottom: 30px;">
                 <div class="stat-card">
                     <div class="stat-value" id="stat-outcomes">0</div>
@@ -933,8 +1072,12 @@
         <div id="page-suggestions" class="page">
             <div class="toolbar">
                 <h2>改進建議</h2>
-                <button class="btn btn-primary" onclick="openSuggestionModal()">+ 新增建議</button>
+                <div class="toolbar-actions">
+                    <button class="btn btn-success" onclick="openAutoSuggestModal()">💡 自動推導建議</button>
+                    <button class="btn btn-primary" onclick="openSuggestionModal()">+ 新增建議</button>
+                </div>
             </div>
+            <div id="insight-flags-sg"></div>
             <div class="grid-3" style="margin-bottom: 30px;">
                 <div class="stat-card">
                     <div class="stat-value" id="stat-sugg-pending">0</div>
@@ -1057,6 +1200,45 @@
         const pct = (v, max = 100) => Math.max(0, Math.min(max, num(v, max)));
 
         /**
+         * KPI 達成率計算 —— 必須區分「越高越好」與「越低越好」。
+         *
+         * 為什麼需要：早期版本一律用 current / target，對「降低型 KPI」會完全算錯。
+         * 例：空駛里程 現況 38% → 目標 25%（數字越低越好）
+         *     舊公式 38/25 = 152% → 進度條顯示 100%，數字最差反而看起來滿分。
+         *
+         * @param kpi     KPI 物件，需有 currentValue / targetValue / direction
+         * @param baseline 基準值（通常是本期現況，用於計算降低型的起點）
+         * @returns {number} 0-100 的達成率
+         */
+        function kpiProgress(kpi, baseline) {
+            const cur = num(kpi.currentValue);
+            const tgt = num(kpi.targetValue);
+            // direction 缺漏時，維持舊行為（當作越高越好），相容既有資料
+            if (kpi.direction !== 'down') {
+                if (tgt === 0) return cur >= 0 && cur !== 0 ? 0 : 100;
+                return (cur / tgt) * 100;
+            }
+            // 降低型：基準與目標的落差就是 100% 的跨度
+            const base = num(baseline, cur);
+            const span = base - tgt;
+            if (span === 0) return cur <= tgt ? 100 : 0;
+            return ((base - cur) / span) * 100;
+        }
+
+        /** KPI 達成率文字描述，會依方向調整語意 */
+        function kpiProgressText(kpi, baseline) {
+            const p = kpiProgress(kpi, baseline);
+            const clamped = Math.round(Math.max(0, Math.min(100, p)));
+            if (kpi.direction === 'down') {
+                const tgt = num(kpi.targetValue);
+                const cur = num(kpi.currentValue);
+                if (cur <= tgt) return `已達標（${cur} ≤ ${tgt}）`;
+                return `距目標還差 ${(cur - tgt)}`;
+            }
+            return clamped + '%';
+        }
+
+        /**
          * 保證資料結構完整 —— 舊版 JSON（v1.0）匯入時缺 outcomes / suggestions，
          * 不補會讓 renderOutcomes() 直接讀 undefined.length 而整頁崩潰。
          * 同時補 meta.version 與 lastUpdated。
@@ -1083,7 +1265,27 @@
                 if (!Array.isArray(d[k])) d[k] = [];
             });
 
-            // 分頁清單：建議依 action / strategy 順序排序，讓舊資料讀起來一致
+            // KPI 逐筆正規化（v2.1 新增 direction / baseline）
+            d.kpis.forEach(k => {
+                if (k && typeof k === 'object') {
+                    // direction 缺漏時預設 'up'，維持舊資料的行為
+                    if (k.direction !== 'down' && k.direction !== 'up') k.direction = 'up';
+                    // baseline：降低型需要起始基準，舊資料沒有就用現況值
+                    if (k.baseline === undefined || k.baseline === null || isNaN(parseFloat(k.baseline))) {
+                        k.baseline = parseFloat(k.currentValue);
+                    }
+                }
+            });
+
+            // suggestions 補上來源連結（v2.1 新增 outcomeId / strategyId）
+            d.suggestions.forEach(s => {
+                if (s && typeof s === 'object') {
+                    if (!s.outcomeId) s.outcomeId = '';
+                    if (!s.strategyId) s.strategyId = '';
+                    if (!s.autoGenerated) s.autoGenerated = false;
+                }
+            });
+
             return d;
         }
 
@@ -1157,14 +1359,45 @@
         }
 
         // ==================== 儀表板 ====================
+        /**
+         * 進度口徑 —— 分兩個，避免「未開始的方案」把真實執行力稀釋掉。
+         *
+         * 早期版本只有一個「整體進度」= 所有方案平均。
+         * 問題：一個 10 個方案裡 7 個還沒啟動的年度計畫，會顯示 18%，
+         *      但實際上已啟動的那 5 個平均有 36% —— 前者看不出執行力，後者才是。
+         */
+        function progressStats() {
+            const all = data.actions;
+            const started = all.filter(a => a.status !== '未開始');
+            const avg = arr => arr.length
+                ? Math.round(arr.reduce((s, a) => s + num(a.progress), 0) / arr.length)
+                : 0;
+            return {
+                overall: avg(all),          // 全規劃口徑（含未開始）
+                started: avg(started),      // 已啟動口徑
+                total: all.length,
+                startedCount: started.length
+            };
+        }
+
         function renderDashboard() {
             document.getElementById('stat-strategies').textContent = data.strategies.length;
             document.getElementById('stat-actions').textContent = data.actions.length;
             document.getElementById('stat-kpis').textContent = data.kpis.length;
 
-            const totalProgress = data.actions.reduce((sum, a) => sum + (a.progress || 0), 0);
-            const avgProgress = data.actions.length > 0 ? Math.round(totalProgress / data.actions.length) : 0;
-            document.getElementById('stat-progress').textContent = avgProgress + '%';
+            const ps = progressStats();
+            const el = document.getElementById('stat-progress');
+            if (ps.startedCount > 0 && ps.startedCount < ps.total) {
+                // 有已啟動也有未開始 → 兩個口徑並陳
+                el.innerHTML = `${ps.started}%<div style="font-size:11px;color:var(--text-muted);margin-top:2px">已啟動 ${ps.startedCount}/${ps.total}｜全規劃 ${ps.overall}%</div>`;
+                el.style.fontSize = '26px';
+            } else {
+                el.textContent = ps.overall + '%';
+                el.style.fontSize = '';
+            }
+            el.title = ps.startedCount < ps.total
+                ? `已啟動 ${ps.startedCount} 個方案平均 ${ps.started}%；全部 ${ps.total} 個（含未開始）平均 ${ps.overall}%`
+                : `${ps.total} 個方案平均進度 ${ps.overall}%`;
 
             // 最近行動方案
             const recentActions = data.actions.slice(-5).reverse();
@@ -1725,16 +1958,26 @@
 
             container.innerHTML = filtered.map(kpi => {
                 const action = data.actions.find(a => a.id === kpi.actionId);
-                const progress = num(kpi.targetValue) !== 0
-                    ? Math.round(num(kpi.currentValue) / num(kpi.targetValue) * 100)
-                    : 0;
+                const progress = kpiProgress(kpi, kpi.baseline);
+                const isDown = kpi.direction === 'down';
+                const reached = Math.max(0, Math.min(100, progress));
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${esc(kpi.name)}</div>
-                            <div class="list-item-meta">${esc(action ? action.title : '未指派')} · 現況：${num(kpi.currentValue)} / 目標：${num(kpi.targetValue)} ${esc(kpi.unit)} · 期限：${esc(kpi.deadline || '未設定')}</div>
+                            <div class="list-item-title">
+                                ${esc(kpi.name)}
+                                ${isDown ? '<span class="kpi-dir" title="數字越低越好">↓ 越低越好</span>' : ''}
+                            </div>
+                            <div class="list-item-meta">
+                                ${esc(action ? action.title : '未指派')}
+                                ${isDown
+                                    ? ` · 現況：${num(kpi.currentValue)} → 目標：≤ ${num(kpi.targetValue)} ${esc(kpi.unit)}（基準 ${num(kpi.baseline)}）`
+                                    : ` · 現況：${num(kpi.currentValue)} / 目標：${num(kpi.targetValue)} ${esc(kpi.unit)}`}
+                                · 期限：${esc(kpi.deadline || '未設定')}
+                                · <b style="color:${reached >= 100 ? 'var(--success)' : reached >= 60 ? 'var(--warning)' : 'var(--danger)'}">${esc(kpiProgressText(kpi, kpi.baseline))}</b>
+                            </div>
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${pct(progress)}%"></div>
+                                <div class="progress-fill" style="width: ${pct(reached)}%"></div>
                             </div>
                         </div>
                         <div class="list-item-actions">
@@ -1761,15 +2004,30 @@
                     <label>KPI 名稱</label>
                     <input type="text" class="form-control" id="kpi-name" value="${esc(isEdit ? kpi.name : '')}">
                 </div>
+                <div class="form-group">
+                    <label>方向 —— 決定達成率怎麼算</label>
+                    <select class="form-control" id="kpi-direction" onchange="toggleBaseline()">
+                        <option value="up" ${!isEdit || kpi.direction !== 'down' ? 'selected' : ''}>↑ 越高越好（營收、準時率、覆蓋率…）</option>
+                        <option value="down" ${isEdit && kpi.direction === 'down' ? 'selected' : ''}>↓ 越低越好（流失率、空駛里程、申訴件數…）</option>
+                    </select>
+                    <small style="color:var(--text-muted);font-size:12px;display:block;margin-top:4px">
+                        選「越低越好」時，達成率會以「基準 → 目標」的落差計算，不會出現數字變差卻顯示滿分的狀況。
+                    </small>
+                </div>
                 <div class="grid-2">
                     <div class="form-group">
                         <label>現況值</label>
                         <input type="number" class="form-control" id="kpi-current" value="${num(isEdit ? kpi.currentValue : 0)}">
                     </div>
-                    <div class="form-group">
-                        <label>目標值</label>
-                        <input type="number" class="form-control" id="kpi-target" value="${esc(isEdit ? kpi.targetValue : '')}">
+                    <div class="form-group" id="kpi-baseline-wrap" style="${isEdit && kpi.direction === 'down' ? '' : 'display:none'}">
+                        <label>基準值（計畫起點）</label>
+                        <input type="number" class="form-control" id="kpi-baseline" value="${num(isEdit ? (kpi.baseline ?? kpi.currentValue) : 0)}">
+                        <small style="color:var(--text-muted);font-size:12px">降低型 KPI 用它算落差</small>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>目標值</label>
+                    <input type="number" class="form-control" id="kpi-target" value="${esc(isEdit ? kpi.targetValue : '')}">
                 </div>
                 <div class="form-group">
                     <label>單位</label>
@@ -1784,28 +2042,44 @@
             document.getElementById('modal-overlay').classList.add('active');
         }
 
+        /** 切換「越低越好」時顯示／隱藏基準值欄位 */
+        function toggleBaseline() {
+            const dir = document.getElementById('kpi-direction').value;
+            const wrap = document.getElementById('kpi-baseline-wrap');
+            if (!wrap) return;
+            wrap.style.display = dir === 'down' ? '' : 'none';
+        }
+
         function saveKpi(id) {
             const actionId = document.getElementById('kpi-action').value;
             const name = document.getElementById('kpi-name').value;
+            const direction = document.getElementById('kpi-direction').value;
             const currentValue = parseFloat(document.getElementById('kpi-current').value) || 0;
             const targetValue = parseFloat(document.getElementById('kpi-target').value);
+            const baselineRaw = document.getElementById('kpi-baseline');
+            const baseline = direction === 'down'
+                ? (baselineRaw && !isNaN(parseFloat(baselineRaw.value)) ? parseFloat(baselineRaw.value) : currentValue)
+                : currentValue;
             const unit = document.getElementById('kpi-unit').value;
             const deadline = document.getElementById('kpi-deadline').value;
 
-            if (!actionId || !name || !targetValue) {
-                showNotification('請填寫必要欄位', 'error');
+            if (!actionId || !name || isNaN(targetValue)) {
+                showNotification('請填寫必要欄位（目標值必須是數字）', 'error');
                 return;
+            }
+            if (direction === 'down' && baseline <= targetValue) {
+                if (!confirm(`基準值（${baseline}）必須大於目標值（${targetValue}），因為「越低越好」才能有進度。\n\n確定要用這個設定嗎？`)) return;
             }
 
             if (id) {
                 const index = data.kpis.findIndex(k => k.id === id);
                 if (index !== -1) {
-                    data.kpis[index] = { ...data.kpis[index], actionId, name, currentValue, targetValue, unit, deadline };
+                    data.kpis[index] = { ...data.kpis[index], actionId, name, direction, currentValue, targetValue, baseline, unit, deadline };
                 }
             } else {
                 data.kpis.push({
                     id: 'k' + Date.now(),
-                    actionId, name, currentValue, targetValue, unit, deadline
+                    actionId, name, direction, currentValue, targetValue, baseline, unit, deadline
                 });
             }
 
@@ -1827,8 +2101,212 @@
             }
         }
 
+        // ==================== 遞迴自我改進：自動推導 ====================
+        /** 渲染洞察提示到指定容器 */
+        function renderInsightFlags(containerId) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const flags = insightFlags();
+            if (!flags.length) { el.innerHTML = ''; return; }
+
+            const goLabel = { autoSuggest: '立即推導', gotoKpi: '前往檢視', gotoActions: '前往指派', gotoOutcomes: '前往成效' };
+            const goPage = { gotoKpi: 'kpis', gotoActions: 'actions', gotoOutcomes: 'outcomes' };
+            el.innerHTML = `
+                <div class="insight-box">
+                    <div class="insight-title">🔍 需要注意（${flags.length}）</div>
+                    ${flags.map(f => `
+                        <div class="insight-item">
+                            <span class="dot">●</span>
+                            <span class="txt">${esc(f.text)}</span>
+                            <span class="go" onclick="${f.action === 'autoSuggest'
+                                ? 'openAutoSuggestModal()'
+                                : `switchPage('${goPage[f.action]}')`}">${goLabel[f.action]}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        /**
+         * 從成效紀錄推導改進建議草稿。
+         *
+         * 為什麼需要：原本「成效追蹤」和「改進建議」是兩個獨立頁面，
+         * 使用者填完成效不會有任何提示，要靠人自己回想「哪裡有問題」。
+         * 那就不叫遞迴了 —— 遞迴的關鍵是「資料 → 洞察 → 行動」自動接起來。
+         *
+         * 規則（門檻可在下方 RULES 調整）：
+         *   1. 完成率低於門檻 → 進度落後
+         *   2. 評分 ≤ 2 → 品質不佳
+         *   3. 有註解 → 該註解本身就是最強的訊號，直接帶入建議
+         *
+         * 只產生「草稿」，不直接寫入 —— 使用者要自己決定採不採用。
+         */
+        const INFER_RULES = {
+            lowCompletion: 60,   // 完成率低於此值 → 提醒
+            lowScore: 3          // 評分 ≤ 此值 → 提醒
+        };
+
+        function inferSuggestions() {
+            const drafts = [];
+            const strategyName = id => {
+                const s = data.strategies.find(x => x.id === id);
+                return s ? s.title : '（已刪除的策略）';
+            };
+
+            data.outcomes.forEach(o => {
+                const name = strategyName(o.strategyId);
+                const issues = [];
+
+                if (num(o.completionRate) < INFER_RULES.lowCompletion) {
+                    issues.push(`完成率 ${num(o.completionRate)}% 低於門檻 ${INFER_RULES.lowCompletion}%`);
+                }
+                if (num(o.score) > 0 && num(o.score) <= INFER_RULES.lowScore) {
+                    issues.push(`評分 ${num(o.score)}/5 偏低`);
+                }
+
+                if (!issues.length) return;
+
+                // 避免重複產生：同一筆成效若已有連到它的建議，就不再提
+                const already = data.suggestions.some(s => s.outcomeId === o.id);
+                if (already) return;
+
+                drafts.push({
+                    outcomeId: o.id,
+                    strategyId: o.strategyId,
+                    issue: `【${name}｜${o.period || '未標期間'}】${issues.join('、')}`,
+                    suggestion: o.notes
+                        ? `原註解：${o.notes}\n\n請補寫具體改進行動。`
+                        : '請補寫具體改進行動（人、資源、時程）。',
+                    priority: (num(o.completionRate) < 40 || num(o.score) <= 2) ? '高' : '中',
+                    status: '待處理',
+                    autoGenerated: true
+                });
+            });
+
+            return drafts;
+        }
+
+        /** 檢查是否有值得注意的問題（給成效頁/建議頁提示用） */
+        function insightFlags() {
+            const flags = [];
+            // 只在「真的有草稿可推導」時才提示，避免使用者按了卻得到「沒有可推導的項目」
+            const pendingDrafts = inferSuggestions().length;
+            if (pendingDrafts > 0) {
+                flags.push({
+                    type: 'outcome',
+                    text: `${pendingDrafts} 筆成效表現不佳，可自動推導改進建議`,
+                    action: 'autoSuggest'
+                });
+            } else if (data.outcomes.length > 0 && data.suggestions.length === 0) {
+                // 有成效但完全沒建議，且沒有可推導的 → 資料不足，提示怎麼做
+                flags.push({
+                    type: 'gap',
+                    text: '已有成效紀錄但沒有任何改進建議 — 請確認成效的完成率與評分有確實填寫',
+                    action: 'gotoOutcomes'
+                });
+            }
+            // KPI 逾期
+            const today = new Date().toISOString().slice(0, 10);
+            const overdue = data.kpis.filter(k => k.deadline && k.deadline < today);
+            if (overdue.length > 0) {
+                flags.push({
+                    type: 'kpi',
+                    text: `${overdue.length} 個 KPI 已過期未檢視`,
+                    action: 'gotoKpi'
+                });
+            }
+            // 行動方案沒有負責人
+            const noOwner = data.actions.filter(a => !a.owner || !a.owner.trim());
+            if (noOwner.length > 0) {
+                flags.push({
+                    type: 'action',
+                    text: `${noOwner.length} 個行動方案未指派負責人`,
+                    action: 'gotoActions'
+                });
+            }
+            return flags;
+        }
+
+        function openAutoSuggestModal() {
+            const drafts = inferSuggestions();
+            const existing = data.suggestions.length;
+
+            if (drafts.length === 0) {
+                const covered = data.outcomes.filter(o => num(o.completionRate) < INFER_RULES.lowCompletion
+                    || (num(o.score) > 0 && num(o.score) <= INFER_RULES.lowScore)).length;
+                let msg;
+                if (data.outcomes.length === 0) {
+                    msg = '還沒有成效紀錄。\n\n請先到「成效追蹤」頁記錄每個策略的執行結果（完成率＋評分），工具才能從中發現問題。';
+                } else if (covered === 0) {
+                    msg = `目前的 ${data.outcomes.length} 筆成效紀錄都在門檻內（完成率 ≥ ${INFER_RULES.lowCompletion}%、評分 > ${INFER_RULES.lowScore}），沒有需要提醒的項目。`;
+                } else {
+                    msg = `需要提醒的 ${covered} 筆成效都已經有對應的改進建議了，不需要重複產生。`;
+                }
+                return showNotification(msg, 'info');
+            }
+
+            const body = drafts.map((d, i) => `
+                <div class="draft-card">
+                    <label class="draft-check">
+                        <input type="checkbox" id="draft-${i}" checked>
+                        <span class="draft-pri draft-pri-${d.priority}">${d.priority}</span>
+                    </label>
+                    <div class="draft-body">
+                        <div class="draft-issue">${esc(d.issue)}</div>
+                        <textarea class="form-control draft-suggestion" id="draft-text-${i}" rows="2">${esc(d.suggestion)}</textarea>
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('modal-title').textContent = `自動推導改進建議（${drafts.length} 筆）`;
+            document.getElementById('modal-content').innerHTML = `
+                <div class="note-box">
+                    從 <b>${data.outcomes.length}</b> 筆成效紀錄中找出 <b>${drafts.length}</b> 項需要改進的地方。
+                    勾選要採用的項目，並補上具體行動後儲存。<br>
+                    <span style="color:var(--text-muted);font-size:12px">門檻：完成率 &lt; ${INFER_RULES.lowCompletion}%、評分 ≤ ${INFER_RULES.lowScore}。已有建議的成效不會重複列出。</span>
+                </div>
+                ${body}
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                    <button class="btn btn-primary" onclick="saveAutoSuggestions()">儲存選取項目</button>
+                </div>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveAutoSuggestions() {
+            const drafts = inferSuggestions();
+            let added = 0;
+            drafts.forEach((d, i) => {
+                const cb = document.getElementById(`draft-${i}`);
+                if (!cb || !cb.checked) return;
+                data.suggestions.push({
+                    id: 'sg' + Date.now() + '_' + i,
+                    outcomeId: d.outcomeId,
+                    strategyId: d.strategyId,
+                    issue: d.issue,
+                    suggestion: document.getElementById(`draft-text-${i}`).value,
+                    priority: d.priority,
+                    status: '待處理',
+                    autoGenerated: true
+                });
+                added++;
+            });
+            closeModal();
+            if (added > 0) {
+                saveData();
+                switchPage('suggestions');
+                renderSuggestions();
+                showNotification(`已新增 ${added} 筆建議草稿`, 'success');
+            } else {
+                showNotification('沒有勾選任何項目', 'info');
+            }
+        }
+
         // ==================== 成效追蹤 ====================
         function renderOutcomes() {
+            // 洞察提示（遞迴閉環的入口）
+            renderInsightFlags('insight-flags');
             // 統計
             document.getElementById('stat-outcomes').textContent = data.outcomes.length;
             const avgScore = data.outcomes.length > 0
@@ -1961,6 +2439,8 @@
         let currentSuggestionFilter = 'all';
 
         function renderSuggestions() {
+            // 洞察提示（成效追蹤有問題時，在這裡也能看到）
+            renderInsightFlags('insight-flags-sg');
             // 統計
             document.getElementById('stat-sugg-pending').textContent = data.suggestions.filter(s => s.status === '待處理').length;
             document.getElementById('stat-sugg-implemented').textContent = data.suggestions.filter(s => s.status === '已實施').length;
@@ -1984,10 +2464,17 @@
             }
 
             container.innerHTML = filtered.map(suggestion => {
+                const outcome = suggestion.outcomeId
+                    ? data.outcomes.find(o => o.id === suggestion.outcomeId)
+                    : null;
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${esc(suggestion.issue)}</div>
+                            <div class="list-item-title">
+                                ${suggestion.autoGenerated ? '<span class="auto-tag">自動推導</span>' : ''}
+                                ${outcome ? `<span class="linked-tag" onclick="jumpToOutcome('${esc(outcome.id)}')" title="點擊查看來源成效紀錄">↩ ${esc(outcome.period || '成效')}</span>` : ''}
+                                ${esc(suggestion.issue)}
+                            </div>
                             <div class="list-item-meta">${esc(suggestion.suggestion)}</div>
                             <div style="margin-top: 6px;">
                                 <span class="status-badge ${cls(suggestion.status, STATUS_CLASS, 'status-draft')}">${esc(suggestion.status)}</span>
@@ -2001,6 +2488,16 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        /** 從建議跳到來源成效紀錄 */
+        function jumpToOutcome(outcomeId) {
+            switchPage('outcomes');
+            setTimeout(() => {
+                const el = document.getElementById('outcome-search');
+                if (el) { el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); }
+                showNotification('已跳至成效追蹤頁，可搜尋期間關鍵字查看來源紀錄', 'info');
+            }, 60);
         }
 
         function filterSuggestions(status) {
@@ -2198,11 +2695,18 @@
                     title: 'KPI 追蹤',
                     content: data.kpis.map(k => {
                         const action = data.actions.find(a => a.id === k.actionId);
-                        const progress = num(k.targetValue) !== 0
-                            ? Math.round(num(k.currentValue) / num(k.targetValue) * 100) : 0;
+                        const progress = kpiProgress(k, k.baseline);
+                        const isDown = k.direction === 'down';
                         return `
                             <div style="margin-bottom: 15px; text-align: left;">
-                                <strong>${esc(k.name)}</strong>：${num(k.currentValue)} / ${num(k.targetValue)} ${esc(k.unit)} (${pct(progress)}%)
+                                <strong>${esc(k.name)}</strong>${isDown ? ' <span class="kpi-dir">↓ 越低越好</span>' : ''}
+                                <br>
+                                <span style="font-size:.9em;color:var(--text-muted)">
+                                  ${isDown
+                                    ? `現況 ${num(k.currentValue)} → 目標 ≤ ${num(k.targetValue)} ${esc(k.unit)}（基準 ${num(k.baseline)}）`
+                                    : `現況 ${num(k.currentValue)} / 目標 ${num(k.targetValue)} ${esc(k.unit)}`}
+                                  · ${esc(kpiProgressText(k, k.baseline))}
+                                </span>
                                 <div class="progress-bar">
                                     <div class="progress-fill" style="width: ${pct(progress)}%"></div>
                                 </div>
@@ -2249,6 +2753,33 @@
                                     </div>
                                 `;
                             }).join('')}
+                        </div>
+                    `
+                });
+            }
+
+            // 改進建議（遞迴閉環的最後一環）
+            if (data.suggestions.length > 0) {
+                const pending = data.suggestions.filter(s => s.status === '待處理');
+                slideList.push({
+                    title: '改進建議',
+                    content: `
+                        <p style="margin-bottom:20px;color:var(--text-muted);font-size:.95em">
+                            從 ${data.outcomes.length} 筆成效紀錄回顧而得，待處理 ${pending.length} 項。
+                        </p>
+                        <div style="text-align:left;max-width:700px;margin:0 auto">
+                            ${data.suggestions.slice(0, 6).map(s => `
+                                <div style="margin-bottom:14px;padding-left:12px;border-left:3px solid ${
+                                    s.priority === '高' ? 'var(--danger)' : s.priority === '中' ? 'var(--secondary)' : 'var(--success)'
+                                }">
+                                    <div style="font-size:.95em;font-weight:600">${esc(s.issue)}</div>
+                                    <div style="font-size:.88em;color:var(--text-muted);margin-top:3px">${esc(s.suggestion).split('\n')[0]}</div>
+                                    <div style="margin-top:5px">
+                                        <span class="status-badge ${cls(s.status, STATUS_CLASS, 'status-draft')}">${esc(s.status)}</span>
+                                        <span style="font-size:.8em;color:var(--text-muted);margin-left:8px">優先級 ${esc(s.priority)}</span>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
                     `
                 });
@@ -2401,10 +2932,13 @@
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
             notification.textContent = message;
-            notification.className = `notification ${type} show`;
-            setTimeout(() => {
+            // 長訊息（多行）加 .long 讓它換行顯示、停留久一點
+            const isLong = message.length > 40 || message.includes('\n');
+            notification.className = `notification ${type}${isLong ? ' long' : ''} show`;
+            clearTimeout(notification._timer);
+            notification._timer = setTimeout(() => {
                 notification.classList.remove('show');
-            }, 3000);
+            }, isLong ? 6000 : 3000);
         }
     </script>
 </body>
