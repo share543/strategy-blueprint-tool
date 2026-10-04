@@ -706,6 +706,18 @@
         </div>
 
         <div class="nav-section">
+            <div class="nav-section-title">追蹤與改進</div>
+            <a class="nav-item" data-page="outcomes">
+                <span class="icon">📈</span>
+                成效追蹤
+            </a>
+            <a class="nav-item" data-page="suggestions">
+                <span class="icon">💡</span>
+                改進建議
+            </a>
+        </div>
+
+        <div class="nav-section">
             <div class="nav-section-title">輸出</div>
             <a class="nav-item" data-page="presentation">
                 <span class="icon">🎬</span>
@@ -887,6 +899,69 @@
             <div id="kpis-list"></div>
         </div>
 
+        <!-- 成效追蹤 -->
+        <div id="page-outcomes" class="page">
+            <div class="toolbar">
+                <h2>成效追蹤</h2>
+                <button class="btn btn-primary" onclick="openOutcomeModal()">+ 新增成效</button>
+            </div>
+            <div class="grid-4" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-outcomes">0</div>
+                    <div class="stat-label">成效紀錄</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-avg-score">0</div>
+                    <div class="stat-label">平均評分</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-avg-completion">0%</div>
+                    <div class="stat-label">平均完成率</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-suggestions">0</div>
+                    <div class="stat-label">改進建議</div>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋成效..." id="outcome-search" oninput="renderOutcomes()">
+            </div>
+            <div id="outcomes-list"></div>
+        </div>
+
+        <!-- 改進建議 -->
+        <div id="page-suggestions" class="page">
+            <div class="toolbar">
+                <h2>改進建議</h2>
+                <button class="btn btn-primary" onclick="openSuggestionModal()">+ 新增建議</button>
+            </div>
+            <div class="grid-3" style="margin-bottom: 30px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-sugg-pending">0</div>
+                    <div class="stat-label">待處理</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-sugg-implemented">0</div>
+                    <div class="stat-label">已實施</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="stat-sugg-rejected">0</div>
+                    <div class="stat-label">已拒絕</div>
+                </div>
+            </div>
+            <div class="search-box">
+                <input type="text" placeholder="搜尋建議..." id="suggestion-search" oninput="renderSuggestions()">
+            </div>
+            <div class="filter-bar">
+                <button class="filter-btn active" data-status="all" onclick="filterSuggestions('all')">全部</button>
+                <button class="filter-btn" data-status="待處理" onclick="filterSuggestions('待處理')">待處理</button>
+                <button class="filter-btn" data-status="已接受" onclick="filterSuggestions('已接受')">已接受</button>
+                <button class="filter-btn" data-status="已拒絕" onclick="filterSuggestions('已拒絕')">已拒絕</button>
+                <button class="filter-btn" data-status="已實施" onclick="filterSuggestions('已實施')">已實施</button>
+            </div>
+            <div id="suggestions-list"></div>
+        </div>
+
         <!-- 簡報模式 -->
         <div id="page-presentation" class="page">
             <div class="toolbar">
@@ -952,7 +1027,9 @@
             metrics: [],
             strategies: [],
             actions: [],
-            kpis: []
+            kpis: [],
+            outcomes: [],
+            suggestions: []
         };
 
         // ==================== 初始化 ====================
@@ -1006,6 +1083,8 @@
                 case 'strategies': renderStrategies(); break;
                 case 'actions': renderActions(); break;
                 case 'kpis': renderKpis(); break;
+                case 'outcomes': renderOutcomes(); break;
+                case 'suggestions': renderSuggestions(); break;
             }
         }
 
@@ -1662,6 +1741,272 @@
             }
         }
 
+        // ==================== 成效追蹤 ====================
+        function renderOutcomes() {
+            // 統計
+            document.getElementById('stat-outcomes').textContent = data.outcomes.length;
+            const avgScore = data.outcomes.length > 0
+                ? (data.outcomes.reduce((s, o) => s + (o.score || 0), 0) / data.outcomes.length).toFixed(1)
+                : 0;
+            document.getElementById('stat-avg-score').textContent = avgScore;
+            const avgCompletion = data.outcomes.length > 0
+                ? Math.round(data.outcomes.reduce((s, o) => s + (o.completionRate || 0), 0) / data.outcomes.length)
+                : 0;
+            document.getElementById('stat-avg-completion').textContent = avgCompletion + '%';
+            document.getElementById('stat-suggestions').textContent = data.suggestions.length;
+
+            // 列表
+            const search = document.getElementById('outcome-search').value.toLowerCase();
+            let filtered = data.outcomes;
+            if (search) {
+                filtered = filtered.filter(o => {
+                    const strategy = data.strategies.find(s => s.id === o.strategyId);
+                    return (strategy && strategy.title.toLowerCase().includes(search)) ||
+                           (o.notes && o.notes.toLowerCase().includes(search));
+                });
+            }
+
+            const container = document.getElementById('outcomes-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">📈</div><p>尚無成效紀錄</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(outcome => {
+                const strategy = data.strategies.find(s => s.id === outcome.strategyId);
+                const scoreColor = outcome.score >= 4 ? 'var(--success)' : outcome.score >= 3 ? 'var(--warning)' : 'var(--danger)';
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">${strategy ? strategy.title : '已刪除策略'}</div>
+                            <div class="list-item-meta">
+                                完成率：${outcome.completionRate || 0}% · 評分：<span style="color: ${scoreColor}; font-weight: bold;">${outcome.score || 0}/5</span>
+                                ${outcome.period ? ' · ' + outcome.period : ''}
+                            </div>
+                            ${outcome.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${outcome.notes}</div>` : ''}
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${outcome.completionRate || 0}%"></div>
+                            </div>
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-edit" onclick="editOutcome('${outcome.id}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteOutcome('${outcome.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openOutcomeModal(outcome = null) {
+            const isEdit = outcome !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯成效' : '新增成效';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>策略主題</label>
+                    <select class="form-control" id="outcome-strategy">
+                        <option value="">請選擇策略</option>
+                        ${data.strategies.map(s => `<option value="${s.id}" ${isEdit && outcome.strategyId === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>期間</label>
+                    <input type="text" class="form-control" id="outcome-period" value="${isEdit ? outcome.period || '' : ''}" placeholder="例：2026-Q4">
+                </div>
+                <div class="form-group">
+                    <label>完成率 (%)</label>
+                    <input type="number" class="form-control" id="outcome-completion" min="0" max="100" value="${isEdit ? outcome.completionRate || 0 : 0}">
+                </div>
+                <div class="form-group">
+                    <label>評分 (1-5)</label>
+                    <input type="number" class="form-control" id="outcome-score" min="1" max="5" value="${isEdit ? outcome.score || 3 : 3}">
+                </div>
+                <div class="form-group">
+                    <label>備註 / 經驗教訓</label>
+                    <textarea class="form-control" id="outcome-notes" value="${isEdit ? outcome.notes || '' : ''}"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveOutcome('${isEdit ? outcome.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveOutcome(id) {
+            const strategyId = document.getElementById('outcome-strategy').value;
+            const period = document.getElementById('outcome-period').value;
+            const completionRate = parseInt(document.getElementById('outcome-completion').value) || 0;
+            const score = parseInt(document.getElementById('outcome-score').value) || 3;
+            const notes = document.getElementById('outcome-notes').value;
+
+            if (!strategyId) {
+                showNotification('請選擇策略主題', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.outcomes.findIndex(o => o.id === id);
+                if (index !== -1) {
+                    data.outcomes[index] = { ...data.outcomes[index], strategyId, period, completionRate, score, notes };
+                }
+            } else {
+                data.outcomes.push({
+                    id: 'o' + Date.now(),
+                    strategyId, period, completionRate, score, notes
+                });
+            }
+
+            closeModal();
+            renderOutcomes();
+            saveData();
+        }
+
+        function editOutcome(id) {
+            const outcome = data.outcomes.find(o => o.id === id);
+            if (outcome) openOutcomeModal(outcome);
+        }
+
+        function deleteOutcome(id) {
+            if (confirm('確定要刪除這個成效紀錄嗎？')) {
+                data.outcomes = data.outcomes.filter(o => o.id !== id);
+                renderOutcomes();
+                saveData();
+            }
+        }
+
+        // ==================== 改進建議 ====================
+        let currentSuggestionFilter = 'all';
+
+        function renderSuggestions() {
+            // 統計
+            document.getElementById('stat-sugg-pending').textContent = data.suggestions.filter(s => s.status === '待處理').length;
+            document.getElementById('stat-sugg-implemented').textContent = data.suggestions.filter(s => s.status === '已實施').length;
+            document.getElementById('stat-sugg-rejected').textContent = data.suggestions.filter(s => s.status === '已拒絕').length;
+
+            // 列表
+            const search = document.getElementById('suggestion-search').value.toLowerCase();
+            let filtered = data.suggestions;
+
+            if (currentSuggestionFilter !== 'all') {
+                filtered = filtered.filter(s => s.status === currentSuggestionFilter);
+            }
+            if (search) {
+                filtered = filtered.filter(s => s.issue.toLowerCase().includes(search) || s.suggestion.toLowerCase().includes(search));
+            }
+
+            const container = document.getElementById('suggestions-list');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon">💡</div><p>尚無改進建議</p></div>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(suggestion => {
+                const priorityClass = suggestion.priority === '高' ? 'priority-high' : suggestion.priority === '中' ? 'priority-medium' : 'priority-low';
+                const statusClass = {
+                    '待處理': 'status-draft',
+                    '已接受': 'status-active',
+                    '已拒絕': 'status-paused',
+                    '已實施': 'status-completed'
+                }[suggestion.status] || 'status-draft';
+                return `
+                    <div class="list-item">
+                        <div class="list-item-content">
+                            <div class="list-item-title">${suggestion.issue}</div>
+                            <div class="list-item-meta">${suggestion.suggestion}</div>
+                            <div style="margin-top: 6px;">
+                                <span class="status-badge ${statusClass}">${suggestion.status}</span>
+                                <span class="${priorityClass}" style="font-size: 12px; margin-left: 8px;">優先級：${suggestion.priority}</span>
+                            </div>
+                        </div>
+                        <div class="list-item-actions">
+                            <button class="btn-icon btn-edit" onclick="editSuggestion('${suggestion.id}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteSuggestion('${suggestion.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function filterSuggestions(status) {
+            currentSuggestionFilter = status;
+            document.querySelectorAll('#page-suggestions .filter-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.status === status);
+            });
+            renderSuggestions();
+        }
+
+        function openSuggestionModal(suggestion = null) {
+            const isEdit = suggestion !== null;
+            document.getElementById('modal-title').textContent = isEdit ? '編輯建議' : '新增建議';
+            document.getElementById('modal-content').innerHTML = `
+                <div class="form-group">
+                    <label>問題描述</label>
+                    <input type="text" class="form-control" id="suggestion-issue" value="${isEdit ? suggestion.issue : ''}" placeholder="例：策略完成率偏低">
+                </div>
+                <div class="form-group">
+                    <label>改進建議</label>
+                    <textarea class="form-control" id="suggestion-text" value="${isEdit ? suggestion.suggestion : ''}" placeholder="具體的改進方案..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>優先級</label>
+                    <select class="form-control" id="suggestion-priority">
+                        <option value="高" ${isEdit && suggestion.priority === '高' ? 'selected' : ''}>高</option>
+                        <option value="中" ${isEdit && suggestion.priority === '中' ? 'selected' : ''}>中</option>
+                        <option value="低" ${isEdit && suggestion.priority === '低' ? 'selected' : ''}>低</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>狀態</label>
+                    <select class="form-control" id="suggestion-status">
+                        <option value="待處理" ${isEdit && suggestion.status === '待處理' ? 'selected' : ''}>待處理</option>
+                        <option value="已接受" ${isEdit && suggestion.status === '已接受' ? 'selected' : ''}>已接受</option>
+                        <option value="已拒絕" ${isEdit && suggestion.status === '已拒絕' ? 'selected' : ''}>已拒絕</option>
+                        <option value="已實施" ${isEdit && suggestion.status === '已實施' ? 'selected' : ''}>已實施</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" onclick="saveSuggestion('${isEdit ? suggestion.id : ''}')">儲存</button>
+            `;
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function saveSuggestion(id) {
+            const issue = document.getElementById('suggestion-issue').value;
+            const suggestionText = document.getElementById('suggestion-text').value;
+            const priority = document.getElementById('suggestion-priority').value;
+            const status = document.getElementById('suggestion-status').value;
+
+            if (!issue || !suggestionText) {
+                showNotification('請填寫必要欄位', 'error');
+                return;
+            }
+
+            if (id) {
+                const index = data.suggestions.findIndex(s => s.id === id);
+                if (index !== -1) {
+                    data.suggestions[index] = { ...data.suggestions[index], issue, suggestion: suggestionText, priority, status };
+                }
+            } else {
+                data.suggestions.push({
+                    id: 'sg' + Date.now(),
+                    issue, suggestion: suggestionText, priority, status
+                });
+            }
+
+            closeModal();
+            renderSuggestions();
+            saveData();
+        }
+
+        function editSuggestion(id) {
+            const suggestion = data.suggestions.find(s => s.id === id);
+            if (suggestion) openSuggestionModal(suggestion);
+        }
+
+        function deleteSuggestion(id) {
+            if (confirm('確定要刪除這個建議嗎？')) {
+                data.suggestions = data.suggestions.filter(s => s.id !== id);
+                renderSuggestions();
+                saveData();
+            }
+        }
+
         // ==================== 簡報模式 ====================
         let currentSlide = 0;
         let slides = [];
@@ -1784,6 +2129,48 @@
                             </div>
                         `;
                     }).join('')
+                });
+            }
+
+            // 成效追蹤
+            if (data.outcomes.length > 0) {
+                const avgScore = (data.outcomes.reduce((s, o) => s + (o.score || 0), 0) / data.outcomes.length).toFixed(1);
+                const avgCompletion = Math.round(data.outcomes.reduce((s, o) => s + (o.completionRate || 0), 0) / data.outcomes.length);
+                slideList.push({
+                    title: '成效追蹤',
+                    content: `
+                        <div class="grid-4" style="margin-bottom: 30px;">
+                            <div class="stat-card">
+                                <div class="stat-value">${data.outcomes.length}</div>
+                                <div class="stat-label">成效紀錄</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${avgScore}</div>
+                                <div class="stat-label">平均評分</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${avgCompletion}%</div>
+                                <div class="stat-label">平均完成率</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-value">${data.suggestions.length}</div>
+                                <div class="stat-label">改進建議</div>
+                            </div>
+                        </div>
+                        <div style="text-align: left; max-width: 600px; margin: 0 auto;">
+                            ${data.outcomes.map(o => {
+                                const strategy = data.strategies.find(s => s.id === o.strategyId);
+                                return `
+                                    <div style="margin-bottom: 15px;">
+                                        <strong>${strategy ? strategy.title : '已刪除策略'}</strong>：完成率 ${o.completionRate || 0}% · 評分 ${o.score || 0}/5
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: ${o.completionRate || 0}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    `
                 });
             }
 
