@@ -1032,8 +1032,75 @@
             suggestions: []
         };
 
+        // ==================== 資料遷移 / 正規化 ====================
+        /**
+         * HTML 轉義 —— 所有使用者輸入要進 innerHTML 前都必須包起來。
+         * 沒有這個的話，在「策略標題」輸入 <img src=x onerror="..."> 就會執行，
+         * 匯入別人給的 JSON 就等於任人執行程式碼。
+         */
+        const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        /** 數值/百分比用的安全輸出（避免 NaN、Infinity 進畫面） */
+        const num = (v, d = 0) => { const n = parseFloat(v); return isNaN(n) ? d : n; };
+        /** class 名稱白名單，避免把使用者字串直接當 class 輸出 */
+        const cls = (v, map, fallback) => map[v] || fallback;
+        /** 狀態 → CSS class 對照（enum 白名單，不讓使用者字串直接變 class） */
+        const STATUS_CLASS = {
+            '未開始': 'status-draft', '草案': 'status-draft', '待處理': 'status-draft',
+            '進行中': 'status-active', '已接受': 'status-active',
+            '已完成': 'status-completed', '已實施': 'status-completed',
+            '暫停': 'status-paused', '已拒絕': 'status-paused'
+        };
+        /** 優先級 → CSS class 對照 */
+        const PRIORITY_CLASS = { '高': 'priority-high', '中': 'priority-medium', '低': 'priority-low' };
+        /** 進度百分比的安全輸出 */
+        const pct = (v, max = 100) => Math.max(0, Math.min(max, num(v, max)));
+
+        /**
+         * 保證資料結構完整 —— 舊版 JSON（v1.0）匯入時缺 outcomes / suggestions，
+         * 不補會讓 renderOutcomes() 直接讀 undefined.length 而整頁崩潰。
+         * 同時補 meta.version 與 lastUpdated。
+         */
+        function normalizeData(raw) {
+            const d = raw && typeof raw === 'object' ? raw : {};
+            d.meta = (d.meta && typeof d.meta === 'object') ? d.meta : {};
+            if (!d.meta.companyName) d.meta.companyName = '';
+            if (!d.meta.year) d.meta.year = new Date().getFullYear() + 1;
+            d.meta.lastUpdated = d.meta.lastUpdated || new Date().toISOString();
+            d.meta.version = '2.0';
+
+            d.vision = (d.vision && typeof d.vision === 'object') ? d.vision : {};
+            if (typeof d.vision.mission !== 'string') d.vision.mission = '';
+            if (typeof d.vision.vision !== 'string') d.vision.vision = '';
+            if (!Array.isArray(d.vision.values)) d.vision.values = [];
+
+            d.swot = (d.swot && typeof d.swot === 'object') ? d.swot : {};
+            ['strengths', 'weaknesses', 'opportunities', 'threats'].forEach(k => {
+                if (!Array.isArray(d.swot[k])) d.swot[k] = [];
+            });
+
+            ['metrics', 'strategies', 'actions', 'kpis', 'outcomes', 'suggestions'].forEach(k => {
+                if (!Array.isArray(d[k])) d[k] = [];
+            });
+
+            // 分頁清單：建議依 action / strategy 順序排序，讓舊資料讀起來一致
+            return d;
+        }
+
+        /** 空資料（重設 / 首次使用） */
+        function blankData() {
+            return normalizeData({
+                meta: { companyName: '', year: new Date().getFullYear() + 1 },
+                vision: { mission: '', vision: '', values: [] },
+                swot: { strengths: [], weaknesses: [], opportunities: [], threats: [] },
+                metrics: [], strategies: [], actions: [], kpis: [],
+                outcomes: [], suggestions: []
+            });
+        }
+
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', function() {
+            data = blankData();
             loadData();
             initNavigation();
             renderDashboard();
@@ -1041,12 +1108,13 @@
 
         function loadData() {
             const saved = localStorage.getItem('strategyBlueprint');
-            if (saved) {
-                try {
-                    data = JSON.parse(saved);
-                } catch (e) {
-                    console.error('載入資料失敗:', e);
-                }
+            if (!saved) return;
+            try {
+                data = normalizeData(JSON.parse(saved));
+            } catch (e) {
+                console.error('載入資料失敗，改用空白資料:', e);
+                showNotification('本機資料毀損，已改用空白資料（原始檔仍在，可匯入復原）', 'error');
+                data = blankData();
             }
         }
 
@@ -1109,13 +1177,13 @@
                     return `
                         <div class="list-item">
                             <div class="list-item-content">
-                                <div class="list-item-title">${action.title}</div>
-                                <div class="list-item-meta">${strategy ? strategy.title : '未指派'} · ${action.owner || '未指派'}</div>
+                                <div class="list-item-title">${esc(action.title)}</div>
+                                <div class="list-item-meta">${esc(strategy ? strategy.title : '未指派')} · ${esc(action.owner || '未指派')}</div>
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${action.progress || 0}%"></div>
+                                    <div class="progress-fill" style="width: ${num(action.progress)}%"></div>
                                 </div>
                             </div>
-                            <span class="status-badge status-${action.status}">${action.status}</span>
+                            <span class="status-badge ${cls(action.status, STATUS_CLASS, 'status-draft')}">${esc(action.status)}</span>
                         </div>
                     `;
                 }).join('');
@@ -1138,8 +1206,8 @@
                     return `
                         <div class="list-item">
                             <div class="list-item-content">
-                                <div class="list-item-title">${kpi.name}</div>
-                                <div class="list-item-meta">${action ? action.title : '未指派'} · 目標：${kpi.targetValue} ${kpi.unit}</div>
+                                <div class="list-item-title">${esc(kpi.name)}</div>
+                                <div class="list-item-meta">${esc(action ? action.title : '未指派')} · 目標：${num(kpi.targetValue)} ${esc(kpi.unit)}</div>
                             </div>
                             <span class="status-badge ${daysLeft <= 7 ? 'status-paused' : 'status-active'}">${daysLeft} 天</span>
                         </div>
@@ -1162,7 +1230,7 @@
             container.innerHTML = data.vision.values.map((value, index) => `
                 <div class="list-item">
                     <div class="list-item-content">
-                        <input type="text" class="form-control" value="${value}" onchange="updateValue(${index}, this.value)">
+                        <input type="text" class="form-control" value="${esc(value)}" onchange="updateValue(${index}, this.value)">
                     </div>
                     <div class="list-item-actions">
                         <button class="btn-icon btn-delete" onclick="removeValue(${index})">🗑️</button>
@@ -1212,7 +1280,7 @@
                 container.innerHTML = data.swot[type].map((item, index) => `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <input type="text" class="form-control" value="${item}" onchange="updateSwotItem('${type}', ${index}, this.value)">
+                            <input type="text" class="form-control" value="${esc(item)}" onchange="updateSwotItem('${type}', ${index}, this.value)">
                         </div>
                         <div class="list-item-actions">
                             <button class="btn-icon btn-delete" onclick="removeSwotItem('${type}', ${index})">🗑️</button>
@@ -1261,12 +1329,12 @@
             container.innerHTML = filtered.map(metric => `
                 <div class="list-item">
                     <div class="list-item-content">
-                        <div class="list-item-title">${metric.name}</div>
-                        <div class="list-item-meta">${metric.value} ${metric.unit} · ${metric.category}${metric.note ? ' · ' + metric.note : ''}</div>
+                        <div class="list-item-title">${esc(metric.name)}</div>
+                        <div class="list-item-meta">${num(metric.value)} ${esc(metric.unit)} · ${esc(metric.category)}${metric.note ? ' · ' + esc(metric.note) : ''}</div>
                     </div>
                     <div class="list-item-actions">
-                        <button class="btn-icon btn-edit" onclick="editMetric('${metric.id}')">✏️</button>
-                        <button class="btn-icon btn-delete" onclick="deleteMetric('${metric.id}')">🗑️</button>
+                        <button class="btn-icon btn-edit" onclick="editMetric('${esc(metric.id)}')">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="deleteMetric('${esc(metric.id)}')">🗑️</button>
                     </div>
                 </div>
             `).join('');
@@ -1286,15 +1354,15 @@
             document.getElementById('modal-content').innerHTML = `
                 <div class="form-group">
                     <label>指標名稱</label>
-                    <input type="text" class="form-control" id="metric-name" value="${isEdit ? metric.name : ''}">
+                    <input type="text" class="form-control" id="metric-name" value="${esc(isEdit ? metric.name : '')}">
                 </div>
                 <div class="form-group">
                     <label>數值</label>
-                    <input type="number" class="form-control" id="metric-value" value="${isEdit ? metric.value : ''}">
+                    <input type="number" class="form-control" id="metric-value" value="${esc(isEdit ? metric.value : '')}">
                 </div>
                 <div class="form-group">
                     <label>單位</label>
-                    <input type="text" class="form-control" id="metric-unit" value="${isEdit ? metric.unit : ''}" placeholder="例：萬元、%、人">
+                    <input type="text" class="form-control" id="metric-unit" value="${esc(isEdit ? metric.unit : '')}" placeholder="例：萬元、%、人">
                 </div>
                 <div class="form-group">
                     <label>分類</label>
@@ -1307,7 +1375,7 @@
                 </div>
                 <div class="form-group">
                     <label>備註</label>
-                    <input type="text" class="form-control" id="metric-note" value="${isEdit ? metric.note || '' : ''}">
+                    <input type="text" class="form-control" id="metric-note" value="${esc(isEdit ? metric.note || '' : '')}">
                 </div>
                 <button class="btn btn-primary" onclick="saveMetric('${isEdit ? metric.id : ''}')">儲存</button>
             `;
@@ -1381,14 +1449,14 @@
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${strategy.title}</div>
-                            <div class="list-item-meta">${strategy.description} · ${actionCount} 個行動方案</div>
+                            <div class="list-item-title">${esc(strategy.title)}</div>
+                            <div class="list-item-meta">${esc(strategy.description)} · ${actionCount} 個行動方案</div>
                         </div>
-                        <span class="status-badge status-${strategy.status}">${strategy.status}</span>
-                        <span class="priority-${strategy.priority === '高' ? 'high' : strategy.priority === '中' ? 'medium' : 'low'}">${strategy.priority}</span>
+                        <span class="status-badge ${cls(strategy.status, STATUS_CLASS, 'status-draft')}">${esc(strategy.status)}</span>
+                        <span class="${cls(strategy.priority, PRIORITY_CLASS, 'priority-low')}">${esc(strategy.priority)}</span>
                         <div class="list-item-actions">
-                            <button class="btn-icon btn-edit" onclick="editStrategy('${strategy.id}')">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="deleteStrategy('${strategy.id}')">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editStrategy('${esc(strategy.id)}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteStrategy('${esc(strategy.id)}')">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -1409,11 +1477,11 @@
             document.getElementById('modal-content').innerHTML = `
                 <div class="form-group">
                     <label>策略標題</label>
-                    <input type="text" class="form-control" id="strategy-title" value="${isEdit ? strategy.title : ''}">
+                    <input type="text" class="form-control" id="strategy-title" value="${esc(isEdit ? strategy.title : '')}">
                 </div>
                 <div class="form-group">
                     <label>描述</label>
-                    <textarea class="form-control" id="strategy-description" value="${isEdit ? strategy.description : ''}"></textarea>
+                    <textarea class="form-control" id="strategy-description" value="${esc(isEdit ? strategy.description : '')}"></textarea>
                 </div>
                 <div class="form-group">
                     <label>優先級</label>
@@ -1471,12 +1539,24 @@
         }
 
         function deleteStrategy(id) {
-            if (confirm('確定要刪除這個策略嗎？相關的行動方案也會被刪除。')) {
-                data.strategies = data.strategies.filter(s => s.id !== id);
-                data.actions = data.actions.filter(a => a.strategyId !== id);
-                renderStrategies();
-                saveData();
-            }
+            const strategy = data.strategies.find(s => s.id === id);
+            const nActions = data.actions.filter(a => a.strategyId === id).length;
+            const nKpis = data.kpis.filter(k =>
+                data.actions.some(a => a.id === k.actionId && a.strategyId === id)).length;
+            const nOutcomes = data.outcomes.filter(o => o.strategyId === id).length;
+
+            let msg = `確定要刪除策略「${strategy ? strategy.title : ''}」嗎？`;
+            const extras = [];
+            if (nActions) extras.push(`${nActions} 個行動方案`);
+            if (nKpis) extras.push(`${nKpis} 個 KPI`);
+            if (nOutcomes) extras.push(`${nOutcomes} 筆成效紀錄`);
+            if (extras.length) msg += `\n\n連帶刪除：${extras.join('、')}。`;
+
+            if (!confirm(msg)) return;
+            cascadeDelete({ strategyId: id });
+            renderStrategies();
+            renderDashboard();
+            saveData();
         }
 
         // ==================== 行動方案 ====================
@@ -1504,16 +1584,16 @@
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${action.title}</div>
-                            <div class="list-item-meta">${strategy ? strategy.title : '未指派'} · ${action.owner || '未指派'} · ${action.startDate || '?'} ~ ${action.endDate || '?'}</div>
+                            <div class="list-item-title">${esc(action.title)}</div>
+                            <div class="list-item-meta">${esc(strategy ? strategy.title : '未指派')} · ${esc(action.owner || '未指派')} · ${esc(action.startDate || '?')} ~ ${esc(action.endDate || '?')}</div>
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${action.progress || 0}%"></div>
+                                <div class="progress-fill" style="width: ${pct(action.progress)}%"></div>
                             </div>
                         </div>
-                        <span class="status-badge status-${action.status}">${action.status}</span>
+                        <span class="status-badge ${cls(action.status, STATUS_CLASS, 'status-draft')}">${esc(action.status)}</span>
                         <div class="list-item-actions">
-                            <button class="btn-icon btn-edit" onclick="editAction('${action.id}')">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="deleteAction('${action.id}')">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editAction('${esc(action.id)}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteAction('${esc(action.id)}')">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -1536,29 +1616,29 @@
                     <label>策略主題</label>
                     <select class="form-control" id="action-strategy">
                         <option value="">請選擇策略</option>
-                        ${data.strategies.map(s => `<option value="${s.id}" ${isEdit && action.strategyId === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                        ${data.strategies.map(s => `<option value="${esc(s.id)}" ${isEdit && action.strategyId === s.id ? 'selected' : ''}>${esc(s.title)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>方案標題</label>
-                    <input type="text" class="form-control" id="action-title" value="${isEdit ? action.title : ''}">
+                    <input type="text" class="form-control" id="action-title" value="${esc(isEdit ? action.title : '')}">
                 </div>
                 <div class="form-group">
                     <label>描述</label>
-                    <textarea class="form-control" id="action-description" value="${isEdit ? action.description : ''}"></textarea>
+                    <textarea class="form-control" id="action-description" value="${esc(isEdit ? action.description : '')}"></textarea>
                 </div>
                 <div class="form-group">
                     <label>負責人</label>
-                    <input type="text" class="form-control" id="action-owner" value="${isEdit ? action.owner : ''}">
+                    <input type="text" class="form-control" id="action-owner" value="${esc(isEdit ? action.owner : '')}">
                 </div>
                 <div class="grid-2">
                     <div class="form-group">
                         <label>開始日期</label>
-                        <input type="date" class="form-control" id="action-start" value="${isEdit ? action.startDate : ''}">
+                        <input type="date" class="form-control" id="action-start" value="${esc(isEdit ? action.startDate : '')}">
                     </div>
                     <div class="form-group">
                         <label>結束日期</label>
-                        <input type="date" class="form-control" id="action-end" value="${isEdit ? action.endDate : ''}">
+                        <input type="date" class="form-control" id="action-end" value="${esc(isEdit ? action.endDate : '')}">
                     </div>
                 </div>
                 <div class="form-group">
@@ -1572,9 +1652,9 @@
                 </div>
                 <div class="form-group">
                     <label>進度 (%)</label>
-                    <input type="number" class="form-control" id="action-progress" min="0" max="100" value="${isEdit ? action.progress || 0 : 0}">
+                    <input type="number" class="form-control" id="action-progress" min="0" max="100" value="${num(isEdit ? action.progress : 0)}">
                 </div>
-                <button class="btn btn-primary" onclick="saveAction('${isEdit ? action.id : ''}')">儲存</button>
+                <button class="btn btn-primary" onclick="saveAction('${isEdit ? esc(action.id) : ''}')">儲存</button>
             `;
             document.getElementById('modal-overlay').classList.add('active');
         }
@@ -1617,11 +1697,15 @@
         }
 
         function deleteAction(id) {
-            if (confirm('確定要刪除這個行動方案嗎？')) {
-                data.actions = data.actions.filter(a => a.id !== id);
-                renderActions();
-                saveData();
-            }
+            const action = data.actions.find(a => a.id === id);
+            const nKpis = data.kpis.filter(k => k.actionId === id).length;
+            let msg = `確定要刪除行動方案「${action ? action.title : ''}」嗎？`;
+            if (nKpis) msg += `\n\n連帶刪除：${nKpis} 個 KPI。`;
+            if (!confirm(msg)) return;
+            cascadeDelete({ actionId: id });
+            renderActions();
+            renderDashboard();
+            saveData();
         }
 
         // ==================== KPI 追蹤 ====================
@@ -1641,19 +1725,21 @@
 
             container.innerHTML = filtered.map(kpi => {
                 const action = data.actions.find(a => a.id === kpi.actionId);
-                const progress = kpi.currentValue && kpi.targetValue ? Math.round((kpi.currentValue / kpi.targetValue) * 100) : 0;
+                const progress = num(kpi.targetValue) !== 0
+                    ? Math.round(num(kpi.currentValue) / num(kpi.targetValue) * 100)
+                    : 0;
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${kpi.name}</div>
-                            <div class="list-item-meta">${action ? action.title : '未指派'} · 現況：${kpi.currentValue || 0} / 目標：${kpi.targetValue} ${kpi.unit} · 期限：${kpi.deadline || '未設定'}</div>
+                            <div class="list-item-title">${esc(kpi.name)}</div>
+                            <div class="list-item-meta">${esc(action ? action.title : '未指派')} · 現況：${num(kpi.currentValue)} / 目標：${num(kpi.targetValue)} ${esc(kpi.unit)} · 期限：${esc(kpi.deadline || '未設定')}</div>
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                                <div class="progress-fill" style="width: ${pct(progress)}%"></div>
                             </div>
                         </div>
                         <div class="list-item-actions">
-                            <button class="btn-icon btn-edit" onclick="editKpi('${kpi.id}')">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="deleteKpi('${kpi.id}')">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editKpi('${esc(kpi.id)}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteKpi('${esc(kpi.id)}')">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -1668,32 +1754,32 @@
                     <label>行動方案</label>
                     <select class="form-control" id="kpi-action">
                         <option value="">請選擇行動方案</option>
-                        ${data.actions.map(a => `<option value="${a.id}" ${isEdit && kpi.actionId === a.id ? 'selected' : ''}>${a.title}</option>`).join('')}
+                        ${data.actions.map(a => `<option value="${esc(a.id)}" ${isEdit && kpi.actionId === a.id ? 'selected' : ''}>${esc(a.title)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>KPI 名稱</label>
-                    <input type="text" class="form-control" id="kpi-name" value="${isEdit ? kpi.name : ''}">
+                    <input type="text" class="form-control" id="kpi-name" value="${esc(isEdit ? kpi.name : '')}">
                 </div>
                 <div class="grid-2">
                     <div class="form-group">
                         <label>現況值</label>
-                        <input type="number" class="form-control" id="kpi-current" value="${isEdit ? kpi.currentValue || 0 : 0}">
+                        <input type="number" class="form-control" id="kpi-current" value="${num(isEdit ? kpi.currentValue : 0)}">
                     </div>
                     <div class="form-group">
                         <label>目標值</label>
-                        <input type="number" class="form-control" id="kpi-target" value="${isEdit ? kpi.targetValue : ''}">
+                        <input type="number" class="form-control" id="kpi-target" value="${esc(isEdit ? kpi.targetValue : '')}">
                     </div>
                 </div>
                 <div class="form-group">
                     <label>單位</label>
-                    <input type="text" class="form-control" id="kpi-unit" value="${isEdit ? kpi.unit : ''}" placeholder="例：萬元、%、人">
+                    <input type="text" class="form-control" id="kpi-unit" value="${esc(isEdit ? kpi.unit : '')}" placeholder="例：萬元、%、人">
                 </div>
                 <div class="form-group">
                     <label>期限</label>
-                    <input type="date" class="form-control" id="kpi-deadline" value="${isEdit ? kpi.deadline : ''}">
+                    <input type="date" class="form-control" id="kpi-deadline" value="${esc(isEdit ? kpi.deadline : '')}">
                 </div>
-                <button class="btn btn-primary" onclick="saveKpi('${isEdit ? kpi.id : ''}')">儲存</button>
+                <button class="btn btn-primary" onclick="saveKpi('${isEdit ? esc(kpi.id) : ''}')">儲存</button>
             `;
             document.getElementById('modal-overlay').classList.add('active');
         }
@@ -1774,23 +1860,23 @@
 
             container.innerHTML = filtered.map(outcome => {
                 const strategy = data.strategies.find(s => s.id === outcome.strategyId);
-                const scoreColor = outcome.score >= 4 ? 'var(--success)' : outcome.score >= 3 ? 'var(--warning)' : 'var(--danger)';
+                const scoreColor = num(outcome.score) >= 4 ? 'var(--success)' : num(outcome.score) >= 3 ? 'var(--warning)' : 'var(--danger)';
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${strategy ? strategy.title : '已刪除策略'}</div>
+                            <div class="list-item-title">${esc(strategy ? strategy.title : '已刪除策略')}</div>
                             <div class="list-item-meta">
-                                完成率：${outcome.completionRate || 0}% · 評分：<span style="color: ${scoreColor}; font-weight: bold;">${outcome.score || 0}/5</span>
-                                ${outcome.period ? ' · ' + outcome.period : ''}
+                                完成率：${pct(outcome.completionRate)}% · 評分：<span style="color: ${scoreColor}; font-weight: bold;">${num(outcome.score)}/5</span>
+                                ${outcome.period ? ' · ' + esc(outcome.period) : ''}
                             </div>
-                            ${outcome.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${outcome.notes}</div>` : ''}
+                            ${outcome.notes ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${esc(outcome.notes)}</div>` : ''}
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: ${outcome.completionRate || 0}%"></div>
+                                <div class="progress-fill" style="width: ${pct(outcome.completionRate)}%"></div>
                             </div>
                         </div>
                         <div class="list-item-actions">
-                            <button class="btn-icon btn-edit" onclick="editOutcome('${outcome.id}')">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="deleteOutcome('${outcome.id}')">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editOutcome('${esc(outcome.id)}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteOutcome('${esc(outcome.id)}')">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -1805,24 +1891,24 @@
                     <label>策略主題</label>
                     <select class="form-control" id="outcome-strategy">
                         <option value="">請選擇策略</option>
-                        ${data.strategies.map(s => `<option value="${s.id}" ${isEdit && outcome.strategyId === s.id ? 'selected' : ''}>${s.title}</option>`).join('')}
+                        ${data.strategies.map(s => `<option value="${esc(s.id)}" ${isEdit && outcome.strategyId === s.id ? 'selected' : ''}>${esc(s.title)}</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>期間</label>
-                    <input type="text" class="form-control" id="outcome-period" value="${isEdit ? outcome.period || '' : ''}" placeholder="例：2026-Q4">
+                    <input type="text" class="form-control" id="outcome-period" value="${esc(isEdit ? outcome.period || '' : '')}" placeholder="例：2026-Q4">
                 </div>
                 <div class="form-group">
                     <label>完成率 (%)</label>
-                    <input type="number" class="form-control" id="outcome-completion" min="0" max="100" value="${isEdit ? outcome.completionRate || 0 : 0}">
+                    <input type="number" class="form-control" id="outcome-completion" min="0" max="100" value="${num(isEdit ? outcome.completionRate : 0)}">
                 </div>
                 <div class="form-group">
                     <label>評分 (1-5)</label>
-                    <input type="number" class="form-control" id="outcome-score" min="1" max="5" value="${isEdit ? outcome.score || 3 : 3}">
+                    <input type="number" class="form-control" id="outcome-score" min="1" max="5" value="${num(isEdit ? outcome.score : 3, 3)}">
                 </div>
                 <div class="form-group">
                     <label>備註 / 經驗教訓</label>
-                    <textarea class="form-control" id="outcome-notes" value="${isEdit ? outcome.notes || '' : ''}"></textarea>
+                    <textarea class="form-control" id="outcome-notes" value="${esc(isEdit ? outcome.notes || '' : '')}"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="saveOutcome('${isEdit ? outcome.id : ''}')">儲存</button>
             `;
@@ -1898,26 +1984,19 @@
             }
 
             container.innerHTML = filtered.map(suggestion => {
-                const priorityClass = suggestion.priority === '高' ? 'priority-high' : suggestion.priority === '中' ? 'priority-medium' : 'priority-low';
-                const statusClass = {
-                    '待處理': 'status-draft',
-                    '已接受': 'status-active',
-                    '已拒絕': 'status-paused',
-                    '已實施': 'status-completed'
-                }[suggestion.status] || 'status-draft';
                 return `
                     <div class="list-item">
                         <div class="list-item-content">
-                            <div class="list-item-title">${suggestion.issue}</div>
-                            <div class="list-item-meta">${suggestion.suggestion}</div>
+                            <div class="list-item-title">${esc(suggestion.issue)}</div>
+                            <div class="list-item-meta">${esc(suggestion.suggestion)}</div>
                             <div style="margin-top: 6px;">
-                                <span class="status-badge ${statusClass}">${suggestion.status}</span>
-                                <span class="${priorityClass}" style="font-size: 12px; margin-left: 8px;">優先級：${suggestion.priority}</span>
+                                <span class="status-badge ${cls(suggestion.status, STATUS_CLASS, 'status-draft')}">${esc(suggestion.status)}</span>
+                                <span class="${cls(suggestion.priority, PRIORITY_CLASS, 'priority-low')}" style="font-size: 12px; margin-left: 8px;">優先級：${esc(suggestion.priority)}</span>
                             </div>
                         </div>
                         <div class="list-item-actions">
-                            <button class="btn-icon btn-edit" onclick="editSuggestion('${suggestion.id}')">✏️</button>
-                            <button class="btn-icon btn-delete" onclick="deleteSuggestion('${suggestion.id}')">🗑️</button>
+                            <button class="btn-icon btn-edit" onclick="editSuggestion('${esc(suggestion.id)}')">✏️</button>
+                            <button class="btn-icon btn-delete" onclick="deleteSuggestion('${esc(suggestion.id)}')">🗑️</button>
                         </div>
                     </div>
                 `;
@@ -1938,11 +2017,11 @@
             document.getElementById('modal-content').innerHTML = `
                 <div class="form-group">
                     <label>問題描述</label>
-                    <input type="text" class="form-control" id="suggestion-issue" value="${isEdit ? suggestion.issue : ''}" placeholder="例：策略完成率偏低">
+                    <input type="text" class="form-control" id="suggestion-issue" value="${esc(isEdit ? suggestion.issue : '')}" placeholder="例：策略完成率偏低">
                 </div>
                 <div class="form-group">
                     <label>改進建議</label>
-                    <textarea class="form-control" id="suggestion-text" value="${isEdit ? suggestion.suggestion : ''}" placeholder="具體的改進方案..."></textarea>
+                    <textarea class="form-control" id="suggestion-text" value="${esc(isEdit ? suggestion.suggestion : '')}" placeholder="具體的改進方案..."></textarea>
                 </div>
                 <div class="form-group">
                     <label>優先級</label>
@@ -2024,7 +2103,7 @@
             // 封面
             slideList.push({
                 title: data.meta.companyName || '公司名稱',
-                subtitle: `${data.meta.year} 年度策略藍圖`,
+                subtitle: `${esc(data.meta.year)} 年度策略藍圖`,
                 content: ''
             });
 
@@ -2033,9 +2112,9 @@
                 slideList.push({
                     title: '願景與使命',
                     content: `
-                        ${data.vision.mission ? `<p><strong>使命：</strong>${data.vision.mission}</p>` : ''}
-                        ${data.vision.vision ? `<p><strong>願景：</strong>${data.vision.vision}</p>` : ''}
-                        ${data.vision.values.length > 0 ? `<p><strong>核心價值觀：</strong>${data.vision.values.join('、')}</p>` : ''}
+                        ${data.vision.mission ? `<p><strong>使命：</strong>${esc(data.vision.mission)}</p>` : ''}
+                        ${data.vision.vision ? `<p><strong>願景：</strong>${esc(data.vision.vision)}</p>` : ''}
+                        ${data.vision.values.length > 0 ? `<p><strong>核心價值觀：</strong>${esc(data.vision.values.join('、'))}</p>` : ''}
                     `
                 });
             }
@@ -2047,19 +2126,19 @@
                     <div class="grid-2" style="text-align: left;">
                         <div>
                             <h4 style="color: var(--success);">優勢</h4>
-                            <ul>${data.swot.strengths.map(s => `<li>${s}</li>`).join('')}</ul>
+                            <ul>${data.swot.strengths.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
                         </div>
                         <div>
                             <h4 style="color: var(--danger);">劣勢</h4>
-                            <ul>${data.swot.weaknesses.map(s => `<li>${s}</li>`).join('')}</ul>
+                            <ul>${data.swot.weaknesses.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
                         </div>
                         <div>
                             <h4 style="color: var(--secondary);">機會</h4>
-                            <ul>${data.swot.opportunities.map(s => `<li>${s}</li>`).join('')}</ul>
+                            <ul>${data.swot.opportunities.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
                         </div>
                         <div>
                             <h4 style="color: #ff6b6b;">威脅</h4>
-                            <ul>${data.swot.threats.map(s => `<li>${s}</li>`).join('')}</ul>
+                            <ul>${data.swot.threats.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
                         </div>
                     </div>
                 `
@@ -2073,8 +2152,8 @@
                         <div class="grid-4">
                             ${data.metrics.map(m => `
                                 <div class="stat-card">
-                                    <div class="stat-value">${m.value}</div>
-                                    <div class="stat-label">${m.name} (${m.unit})</div>
+                                    <div class="stat-value">${num(m.value)}</div>
+                                    <div class="stat-label">${esc(m.name)} (${esc(m.unit)})</div>
                                 </div>
                             `).join('')}
                         </div>
@@ -2088,8 +2167,8 @@
                     title: '策略主題',
                     content: data.strategies.map(s => `
                         <div style="margin-bottom: 20px; text-align: left;">
-                            <h3>${s.title} <span class="status-badge status-${s.status}">${s.status}</span></h3>
-                            <p>${s.description}</p>
+                            <h3>${esc(s.title)} <span class="status-badge ${cls(s.status, STATUS_CLASS, 'status-draft')}">${esc(s.status)}</span></h3>
+                            <p>${esc(s.description)}</p>
                         </div>
                     `).join('')
                 });
@@ -2103,9 +2182,9 @@
                         const strategy = data.strategies.find(s => s.id === a.strategyId);
                         return `
                             <div style="margin-bottom: 15px; text-align: left;">
-                                <strong>${a.title}</strong> <span class="status-badge status-${a.status}">${a.status}</span>
+                                <strong>${esc(a.title)}</strong> <span class="status-badge ${cls(a.status, STATUS_CLASS, 'status-draft')}">${esc(a.status)}</span>
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${a.progress || 0}%"></div>
+                                    <div class="progress-fill" style="width: ${pct(a.progress)}%"></div>
                                 </div>
                             </div>
                         `;
@@ -2119,12 +2198,13 @@
                     title: 'KPI 追蹤',
                     content: data.kpis.map(k => {
                         const action = data.actions.find(a => a.id === k.actionId);
-                        const progress = k.currentValue && k.targetValue ? Math.round((k.currentValue / k.targetValue) * 100) : 0;
+                        const progress = num(k.targetValue) !== 0
+                            ? Math.round(num(k.currentValue) / num(k.targetValue) * 100) : 0;
                         return `
                             <div style="margin-bottom: 15px; text-align: left;">
-                                <strong>${k.name}</strong>：${k.currentValue || 0} / ${k.targetValue} ${k.unit} (${progress}%)
+                                <strong>${esc(k.name)}</strong>：${num(k.currentValue)} / ${num(k.targetValue)} ${esc(k.unit)} (${pct(progress)}%)
                                 <div class="progress-bar">
-                                    <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                                    <div class="progress-fill" style="width: ${pct(progress)}%"></div>
                                 </div>
                             </div>
                         `;
@@ -2162,9 +2242,9 @@
                                 const strategy = data.strategies.find(s => s.id === o.strategyId);
                                 return `
                                     <div style="margin-bottom: 15px;">
-                                        <strong>${strategy ? strategy.title : '已刪除策略'}</strong>：完成率 ${o.completionRate || 0}% · 評分 ${o.score || 0}/5
+                                        <strong>${esc(strategy ? strategy.title : '已刪除策略')}</strong>：完成率 ${pct(o.completionRate)}% · 評分 ${num(o.score)}/5
                                         <div class="progress-bar">
-                                            <div class="progress-fill" style="width: ${o.completionRate || 0}%"></div>
+                                            <div class="progress-fill" style="width: ${pct(o.completionRate)}%"></div>
                                         </div>
                                     </div>
                                 `;
@@ -2186,9 +2266,11 @@
 
         function renderSlide() {
             const slide = slides[currentSlide];
+            if (!slide) return;
+            // title / subtitle 可能來自使用者輸入（公司名稱、年度），一律轉義
             document.getElementById('slide-content').innerHTML = `
-                <h1>${slide.title}</h1>
-                ${slide.subtitle ? `<h2>${slide.subtitle}</h2>` : ''}
+                <h1>${esc(slide.title)}</h1>
+                ${slide.subtitle ? `<h2>${esc(slide.subtitle)}</h2>` : ''}
                 <div class="slide-content">${slide.content}</div>
             `;
             document.getElementById('slide-indicator').textContent = `${currentSlide + 1} / ${slides.length}`;
@@ -2240,33 +2322,71 @@
 
             const reader = new FileReader();
             reader.onload = function(e) {
+                let imported;
                 try {
-                    const imported = JSON.parse(e.target.result);
-                    data = imported;
-                    saveData();
-                    renderDashboard();
-                    showNotification('匯入成功', 'success');
+                    imported = JSON.parse(e.target.result);
                 } catch (err) {
-                    showNotification('匯入失敗：檔案格式錯誤', 'error');
+                    return showNotification('匯入失敗：檔案不是有效的 JSON', 'error');
                 }
+                // normalizeData 補齊舊版缺漏的欄位，避免匯入 v1.0 檔案後整頁崩潰
+                const before = countItems(imported);
+                data = normalizeData(imported);
+                saveData();
+                switchPage('dashboard');
+                renderDashboard();
+                const after = countItems(data);
+                const added = (after.total - before.total) || (after.outcomes + after.suggestions);
+                showNotification(
+                    added > 0
+                        ? `匯入成功（已自動補齊舊版缺少的欄位）`
+                        : '匯入成功',
+                    'success'
+                );
             };
             reader.readAsText(file);
+            event.target.value = '';   // 讓同檔可再次觸發
+        }
+
+        /** 統計各類項目數量（用於匯入訊息與資料健康檢查） */
+        function countItems(d) {
+            const get = k => (d && Array.isArray(d[k])) ? d[k].length : 0;
+            const total = ['metrics', 'strategies', 'actions', 'kpis'].reduce((s, k) => s + get(k), 0);
+            return {
+                total,
+                outcomes: get('outcomes'),
+                suggestions: get('suggestions')
+            };
         }
 
         function resetData() {
-            if (confirm('確定要重設所有資料嗎？此操作無法復原。')) {
-                data = {
-                    meta: { companyName: '', year: new Date().getFullYear() + 1, lastUpdated: new Date().toISOString(), version: '1.0' },
-                    vision: { mission: '', vision: '', values: [] },
-                    swot: { strengths: [], weaknesses: [], opportunities: [], threats: [] },
-                    metrics: [],
-                    strategies: [],
-                    actions: [],
-                    kpis: []
-                };
-                saveData();
-                renderDashboard();
-                showNotification('已重設', 'success');
+            if (!confirm('確定要重設所有資料嗎？此操作無法復原。\n建議先「匯出」備份。')) return;
+            data = blankData();
+            saveData();
+            switchPage('dashboard');
+            renderDashboard();
+            showNotification('已重設為空白資料', 'success');
+        }
+
+        /**
+         * 刪除後清理關聯資料 —— 避免孤兒紀錄讓儀表板/簡報數字失真。
+         * 關聯圖：strategies ← actions ← kpis ；outcomes 掛 strategies。
+         * 規則：刪策略 → 連帶刪其下 actions、指向那些 action 的 kpis、該策略的 outcomes。
+         *      刪行動 → 只連帶刪指向它的 kpis（outcomes 掛策略，不受影響）。
+         *      suggestions 是跨策略的改進建議，不隨刪除自動移除，交由使用者自行判斷。
+         */
+        function cascadeDelete({ strategyId, actionId }) {
+            if (strategyId) {
+                const deadActions = data.actions.filter(a => a.strategyId === strategyId).map(a => a.id);
+                data.strategies = data.strategies.filter(s => s.id !== strategyId);
+                data.actions = data.actions.filter(a => a.strategyId !== strategyId);
+                if (deadActions.length) {
+                    data.kpis = data.kpis.filter(k => !deadActions.includes(k.actionId));
+                }
+                data.outcomes = data.outcomes.filter(o => o.strategyId !== strategyId);
+            }
+            if (actionId) {
+                data.actions = data.actions.filter(a => a.id !== actionId);
+                data.kpis = data.kpis.filter(k => k.actionId !== actionId);
             }
         }
 

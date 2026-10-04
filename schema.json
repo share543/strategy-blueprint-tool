@@ -1,10 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Strategy Blueprint Tool - Data Model",
-  "version": "1.0.0",
-  "description": "公司策略藍圖發展工具 - 資料模型",
+  "version": "2.0.0",
+  "description": "公司策略藍圖發展工具 - 資料模型（v2.0 新增 outcomes / suggestions 遞迴自我改進）",
   "type": "object",
-  "required": ["meta", "vision", "swot", "metrics", "strategies", "actions", "kpis"],
+  "required": ["meta", "vision", "swot", "metrics", "strategies", "actions", "kpis", "outcomes", "suggestions"],
   "properties": {
     "meta": {
       "type": "object",
@@ -12,7 +12,7 @@
         "companyName": { "type": "string", "description": "公司名稱" },
         "year": { "type": "number", "description": "年度" },
         "lastUpdated": { "type": "string", "format": "date-time" },
-        "version": { "type": "string", "default": "1.0" }
+        "version": { "type": "string", "default": "2.0" }
       },
       "required": ["companyName", "year"]
     },
@@ -120,6 +120,37 @@
           "deadline": { "type": "string", "format": "date" }
         },
         "required": ["id", "actionId", "name", "targetValue", "unit"]
+      }
+    },
+    "outcomes": {
+      "type": "array",
+      "description": "成效追蹤紀錄 —— 遞迴自我改進的輸入。記錄每期策略執行結果，供改進建議與回顧使用。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "唯一識別碼（前綴 o）" },
+          "strategyId": { "type": "string", "description": "所屬策略主題 ID" },
+          "period": { "type": "string", "description": "期間標記，例：2026-Q4" },
+          "completionRate": { "type": "number", "minimum": 0, "maximum": 100, "description": "完成率百分比" },
+          "score": { "type": "number", "minimum": 1, "maximum": 5, "description": "成效評分 1-5" },
+          "notes": { "type": "string", "description": "備註 / 經驗教訓" }
+        },
+        "required": ["id", "strategyId", "completionRate", "score"]
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "description": "改進建議 —— 遞迴自我改進的產出。記錄從成效歸納出的改進方向與其處理狀態。",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "唯一識別碼（前綴 sg）" },
+          "issue": { "type": "string", "description": "問題描述" },
+          "suggestion": { "type": "string", "description": "改進建議內容" },
+          "priority": { "type": "string", "enum": ["高", "中", "低"] },
+          "status": { "type": "string", "enum": ["待處理", "已接受", "已拒絕", "已實施"] }
+        },
+        "required": ["id", "issue", "suggestion", "priority", "status"]
       }
     }
   }
